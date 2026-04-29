@@ -83,11 +83,11 @@ export default function CampaignManage() {
           hint="Share this with your players. They sign in with Twitch and get their own character."
         />
         <UrlRow
-          label="Overlay URL"
+          label="Overlay (preview — all characters)"
           value={overlayUrl}
           copied={copied === 'overlay'}
           onCopy={() => copy('overlay', overlayUrl)}
-          hint="Add as a Browser Source in OBS. Background is transparent."
+          hint="Useful for previewing layouts. For OBS, use the per-character URLs below — one Browser Source per player."
         />
       </section>
 
@@ -96,29 +96,48 @@ export default function CampaignManage() {
         {characters.length === 0 ? (
           <p className="text-stone-500">No players have joined yet.</p>
         ) : (
-          <ul className="space-y-2">
-            {characters.map((ch) => (
-              <li
-                key={ch.id}
-                className="bg-stone-800 border border-stone-700 rounded p-4 flex justify-between items-center"
-              >
-                <div>
-                  <div className="text-xl">{ch.name || '(unnamed)'}</div>
-                  <div className="text-sm text-stone-400">
-                    {ch.race || '—'} {ch.class || '—'} · HP {ch.current_hp}/{ch.max_hp}
-                    {ch.twitch_display_name && (
-                      <span className="ml-2 text-purple-400">@{ch.twitch_display_name}</span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeCharacter(ch.id)}
-                  className="text-sm text-red-400 hover:text-red-300"
+          <ul className="space-y-3">
+            {characters.map((ch) => {
+              const charOverlayUrl = `${origin}/overlay/${campaign.id}/${ch.id}`;
+              const copyKey = `char:${ch.id}`;
+              return (
+                <li
+                  key={ch.id}
+                  className="bg-stone-800 border border-stone-700 rounded p-4"
                 >
-                  Remove
-                </button>
-              </li>
-            ))}
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xl">{ch.name || '(unnamed)'}</div>
+                      <div className="text-sm text-stone-400">
+                        {ch.race || '—'} {ch.class || '—'} · HP {ch.current_hp}/{ch.max_hp}
+                        {ch.twitch_display_name && (
+                          <span className="ml-2 text-purple-400">
+                            @{ch.twitch_display_name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <code className="text-xs text-stone-300 bg-stone-900 px-2 py-1 rounded truncate flex-1">
+                          {charOverlayUrl}
+                        </code>
+                        <button
+                          onClick={() => copy(copyKey, charOverlayUrl)}
+                          className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded whitespace-nowrap"
+                        >
+                          {copied === copyKey ? 'Copied!' : 'Copy overlay URL'}
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeCharacter(ch.id)}
+                      className="text-sm text-red-400 hover:text-red-300"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

@@ -64,10 +64,18 @@ Open http://localhost:5173.
 
 1. **GM (you):** open the app, sign in with Twitch, create a campaign.
 2. **Players:** GM copies the **Player Join Link** from the campaign page and shares it (Discord, etc). Each player clicks it, signs in with Twitch, and gets their own character sheet to edit.
-3. **OBS:** GM copies the **Overlay URL** and adds it as a Browser Source in OBS:
-   - Width: 1920, Height: 1080 (or match your scene)
+3. **OBS:** Each player's video tile gets its own Browser Source pointing at that player's per-character overlay URL (visible on the campaign page next to each character):
+   - URL: `https://your-app.com/overlay/<campaignId>/<characterId>`
+   - Width: 1920, Height: 1080 (the layout scales to whatever size you give the source — keep 16:9)
    - Custom CSS: leave blank (the page handles transparency)
    - Refresh source if it ever stops updating
+   - The all-characters URL (`/overlay/<campaignId>`) is for preview only — use per-character URLs in production so you can position each card over each player's video tile.
+
+**Layout (per 1920x1080 card):**
+- Top-left: character name (large) + race / class
+- Right edge: STR, AGI, CON, INT, WIS, CHA spread top-to-bottom
+- Bottom-left: HP / Max HP
+- Bottom-center: Twitch display name
 
 Edits show up on the overlay in realtime (~100ms).
 

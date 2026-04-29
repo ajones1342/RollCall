@@ -16,6 +16,7 @@ export default function App() {
         <Route path="/join/:campaignId" element={<JoinCampaign />} />
         <Route path="/play/:campaignId" element={<PlayerEdit />} />
         <Route path="/overlay/:campaignId" element={<Overlay />} />
+        <Route path="/overlay/:campaignId/:characterId" element={<Overlay />} />
       </Routes>
     </BrowserRouter>
   );
