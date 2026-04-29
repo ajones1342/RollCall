@@ -28,7 +28,7 @@ npm install
 
 1. Go to https://supabase.com and create a free project.
 2. In the SQL Editor, paste the contents of [`supabase/schema.sql`](supabase/schema.sql) and run it.
-3. Copy the project URL and the **anon public** key from `Project Settings → API`.
+3. Copy the **Project URL** and the **Publishable** key from `Project Settings → API`. (Older projects expose a legacy **anon public** JWT instead — that works too.)
 
 ### 3. Register a Twitch application
 
@@ -50,7 +50,7 @@ npm install
 cp .env.example .env
 ```
 
-Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
 
 ## Run
 
@@ -104,7 +104,7 @@ supabase/
 When you're ready to host:
 
 1. Deploy this repo to Vercel or Netlify (both detect Vite automatically).
-2. Add the same `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` env vars in the host's dashboard.
+2. Add the same `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` env vars in the host's dashboard.
 3. In Supabase `Authentication → URL Configuration`, add the production URL to `Site URL` and `Redirect URLs`.
 4. Add the production redirect URL to your Twitch app: `https://<your-project-ref>.supabase.co/auth/v1/callback` is the same — Twitch only needs the Supabase callback, not your frontend URL.
 

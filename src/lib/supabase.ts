@@ -1,13 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-export const supabaseConfigured = Boolean(url && anonKey);
+// Supabase's new publishable key is preferred. Older projects still use
+// the legacy anon JWT — both work with supabase-js, so accept either.
+const publishableKey =
+  (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ||
+  (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
+
+export const supabaseConfigured = Boolean(url && publishableKey);
 
 if (!supabaseConfigured) {
   console.warn(
-    '[RollCall] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
+    '[RollCall] Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY. ' +
       'Copy .env.example to .env and fill them in, then restart the dev server. ' +
       'The app will render but auth and database calls will fail.'
   );
@@ -18,5 +23,5 @@ if (!supabaseConfigured) {
 // will render so you can verify the build before doing Supabase setup.
 export const supabase = createClient(
   url || 'https://placeholder.supabase.co',
-  anonKey || 'placeholder-anon-key'
+  publishableKey || 'placeholder-key'
 );
