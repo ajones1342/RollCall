@@ -110,9 +110,4 @@ When you're ready to host:
 
 ## Roadmap
 
-- Drag-to-reorder party (uses `display_order`)
-- Conditions / status effects
-- Inspiration toggle
-- Character portraits (Twitch avatar fallback already wired)
-- Optional GM-curated join (approve players before they appear)
-- Packaged hosted SaaS for other GMs
+See [ROADMAP.md](ROADMAP.md) for the prioritized feature list.
