@@ -225,7 +225,7 @@ function DeathSavesIndicator({
 
 export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) {
   const fill = fillStyle(theme);
-  const pad = theme.edgePadding;
+  const pos = theme.positions;
   const sz = theme.fontSizes;
   const hidden = new Set(normalizeHiddenFields(c.hidden_fields));
   const showName = !hidden.has('name');
@@ -259,7 +259,12 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
       {/* Top-left: name + race/class + conditions */}
       {showTopLeft && (
         <div
-          style={{ position: 'absolute', top: pad, left: pad, maxWidth: 1920 - pad * 2 - 200 }}
+          style={{
+            position: 'absolute',
+            top: pos.nameTop,
+            left: pos.nameLeft,
+            maxWidth: 1920 - pos.nameLeft - 200,
+          }}
         >
           {showName && (
             <div
@@ -310,9 +315,9 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
         <div
           style={{
             position: 'absolute',
-            top: pad,
-            bottom: pad,
-            right: pad,
+            top: pos.attributesTop,
+            bottom: pos.attributesBottom,
+            right: pos.attributesRight,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
@@ -353,8 +358,8 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
         <div
           style={{
             position: 'absolute',
-            bottom: pad,
-            left: pad,
+            bottom: pos.hpBottom,
+            left: pos.hpLeft,
             display: 'flex',
             flexDirection: 'column',
             gap: 18,
@@ -410,7 +415,7 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
           style={{
             ...fill,
             position: 'absolute',
-            bottom: pad + 20,
+            bottom: pos.streamerBottom,
             left: '50%',
             transform: 'translateX(-50%)',
             fontSize: sz.streamerName,

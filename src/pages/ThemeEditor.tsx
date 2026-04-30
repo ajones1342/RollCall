@@ -123,6 +123,13 @@ export default function ThemeEditor() {
     }));
   };
 
+  const setPosition = (key: keyof Theme['positions'], value: number) => {
+    setDraft((d) => ({
+      ...d,
+      positions: { ...d.positions, [key]: value },
+    }));
+  };
+
   const reset = () => {
     if (!confirm('Reset all theme settings to defaults?')) return;
     setDraft(DEFAULT_THEME);
@@ -256,23 +263,93 @@ export default function ThemeEditor() {
             )}
           </Section>
 
-          <Section title="Shadow & Padding">
+          <Section title="Shadow">
             <SliderRow
-              label="Shadow"
+              label="Strength"
               value={draft.shadowStrength}
               min={0}
               max={1}
               step={0.05}
               onChange={(v) => setField('shadowStrength', v)}
             />
+          </Section>
+
+          <Section title="Element Positions">
+            <p className="text-xs text-stone-500 mb-2">
+              Distance from each element's anchor edge, in px. Increase to nudge
+              the element inward; decrease to push it toward the corner.
+            </p>
             <SliderRow
-              label="Edge padding"
-              value={draft.edgePadding}
-              min={40}
-              max={200}
+              label="Name — top"
+              value={draft.positions.nameTop}
+              min={0}
+              max={600}
               step={2}
               unit="px"
-              onChange={(v) => setField('edgePadding', v)}
+              onChange={(v) => setPosition('nameTop', v)}
+            />
+            <SliderRow
+              label="Name — left"
+              value={draft.positions.nameLeft}
+              min={0}
+              max={800}
+              step={2}
+              unit="px"
+              onChange={(v) => setPosition('nameLeft', v)}
+            />
+            <SliderRow
+              label="Attributes — top"
+              value={draft.positions.attributesTop}
+              min={0}
+              max={400}
+              step={2}
+              unit="px"
+              onChange={(v) => setPosition('attributesTop', v)}
+            />
+            <SliderRow
+              label="Attributes — right"
+              value={draft.positions.attributesRight}
+              min={0}
+              max={400}
+              step={2}
+              unit="px"
+              onChange={(v) => setPosition('attributesRight', v)}
+            />
+            <SliderRow
+              label="Attributes — bottom"
+              value={draft.positions.attributesBottom}
+              min={0}
+              max={400}
+              step={2}
+              unit="px"
+              onChange={(v) => setPosition('attributesBottom', v)}
+            />
+            <SliderRow
+              label="HP — bottom"
+              value={draft.positions.hpBottom}
+              min={0}
+              max={500}
+              step={2}
+              unit="px"
+              onChange={(v) => setPosition('hpBottom', v)}
+            />
+            <SliderRow
+              label="HP — left"
+              value={draft.positions.hpLeft}
+              min={0}
+              max={800}
+              step={2}
+              unit="px"
+              onChange={(v) => setPosition('hpLeft', v)}
+            />
+            <SliderRow
+              label="Streamer — bottom"
+              value={draft.positions.streamerBottom}
+              min={0}
+              max={500}
+              step={2}
+              unit="px"
+              onChange={(v) => setPosition('streamerBottom', v)}
             />
           </Section>
 
@@ -453,10 +530,21 @@ function SliderRow(props: {
         onChange={(e) => props.onChange(parseFloat(e.target.value))}
         className="flex-1"
       />
-      <span className="text-sm text-stone-300 w-16 text-right tabular-nums">
-        {Number.isInteger(props.value) ? props.value : props.value.toFixed(2)}
-        {props.unit ?? ''}
-      </span>
+      <input
+        type="number"
+        min={props.min}
+        max={props.max}
+        step={props.step}
+        value={props.value}
+        onChange={(e) => {
+          const v = parseFloat(e.target.value);
+          if (!Number.isNaN(v)) props.onChange(v);
+        }}
+        className="input w-20 text-right tabular-nums"
+      />
+      {props.unit && (
+        <span className="text-sm text-stone-500 w-4">{props.unit}</span>
+      )}
     </label>
   );
 }

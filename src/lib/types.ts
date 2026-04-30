@@ -79,6 +79,17 @@ export const TEXTURE_OPTIONS: { value: TexturePreset; label: string }[] = [
   { value: 'crosshatch', label: 'Crosshatch' },
 ];
 
+export type Positions = {
+  nameTop: number;
+  nameLeft: number;
+  attributesTop: number;
+  attributesRight: number;
+  attributesBottom: number;
+  hpBottom: number;
+  hpLeft: number;
+  streamerBottom: number;
+};
+
 export type Theme = {
   fontFamily: string;
   fillMode: FillMode;
@@ -90,9 +101,23 @@ export type Theme = {
   textureBase: string;
   textureAccent: string;
   shadowStrength: number;
-  edgePadding: number;
+  edgePadding: number; // legacy fallback for themes saved before positions existed
+  positions: Positions;
   fontSizes: FontSizes;
 };
+
+export function defaultPositions(edgePadding: number): Positions {
+  return {
+    nameTop: edgePadding,
+    nameLeft: edgePadding,
+    attributesTop: edgePadding,
+    attributesRight: edgePadding,
+    attributesBottom: edgePadding,
+    hpBottom: edgePadding,
+    hpLeft: edgePadding,
+    streamerBottom: edgePadding + 20,
+  };
+}
 
 export const DEFAULT_THEME: Theme = {
   fontFamily: 'Cinzel',
@@ -106,6 +131,7 @@ export const DEFAULT_THEME: Theme = {
   textureAccent: '#7c2d12',
   shadowStrength: 0.9,
   edgePadding: 80,
+  positions: defaultPositions(80),
   fontSizes: {
     name: 96,
     subtitle: 48,
@@ -122,6 +148,10 @@ export const DEFAULT_THEME: Theme = {
 // resolved theme passed to render is full Theme.
 export function mergeTheme(partial: Partial<Theme> | null | undefined): Theme {
   if (!partial) return DEFAULT_THEME;
+  const edgePadding = partial.edgePadding ?? DEFAULT_THEME.edgePadding;
+  // Backward compat: if a stored theme predates the positions field, derive
+  // positions from edgePadding so the old visual layout is preserved.
+  const fallbackPositions = defaultPositions(edgePadding);
   return {
     fontFamily: partial.fontFamily ?? DEFAULT_THEME.fontFamily,
     fillMode: partial.fillMode ?? DEFAULT_THEME.fillMode,
@@ -133,7 +163,8 @@ export function mergeTheme(partial: Partial<Theme> | null | undefined): Theme {
     textureBase: partial.textureBase ?? DEFAULT_THEME.textureBase,
     textureAccent: partial.textureAccent ?? DEFAULT_THEME.textureAccent,
     shadowStrength: partial.shadowStrength ?? DEFAULT_THEME.shadowStrength,
-    edgePadding: partial.edgePadding ?? DEFAULT_THEME.edgePadding,
+    edgePadding,
+    positions: { ...fallbackPositions, ...(partial.positions ?? {}) },
     fontSizes: { ...DEFAULT_THEME.fontSizes, ...(partial.fontSizes ?? {}) },
   };
 }
