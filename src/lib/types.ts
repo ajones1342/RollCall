@@ -188,9 +188,9 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
 }
 
 export const DEFAULT_THEME: Theme = {
-  fontFamily: 'Cinzel',
-  fillMode: 'gradient',
-  solidColor: '#f5f5f4',
+  fontFamily: 'Cormorant SC',
+  fillMode: 'solid',
+  solidColor: '#ffffff',
   gradientFrom: '#02fdfc',
   gradientTo: '#c22cff',
   gradientAngle: 85,
