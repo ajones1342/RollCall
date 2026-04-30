@@ -14,6 +14,7 @@ export type Character = {
   wisdom: number;
   charisma: number;
   display_order: number;
+  hidden_fields: HideableField[];
   twitch_display_name: string | null;
   twitch_avatar_url: string | null;
   created_at: string;
@@ -46,3 +47,12 @@ export const ATTRIBUTE_LABELS: Record<AttributeKey, string> = {
   wisdom: 'WIS',
   charisma: 'CHA',
 };
+
+export type HideableField = 'subtitle' | 'hp' | 'attributes' | 'streamer_name';
+
+export const HIDEABLE_FIELDS: { key: HideableField; label: string }[] = [
+  { key: 'subtitle', label: 'Race / Class' },
+  { key: 'hp', label: 'HP' },
+  { key: 'attributes', label: 'Attributes' },
+  { key: 'streamer_name', label: 'Streamer name' },
+];

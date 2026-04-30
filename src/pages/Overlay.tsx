@@ -168,7 +168,12 @@ function ScaleToFitInner({
 }
 
 function CharacterCard1080({ c }: { c: Character }) {
+  const hidden = new Set(c.hidden_fields ?? []);
   const subtitle = [c.race, c.class].filter(Boolean).join(' · ');
+  const showSubtitle = subtitle && !hidden.has('subtitle');
+  const showHp = !hidden.has('hp');
+  const showAttributes = !hidden.has('attributes');
+  const showStreamer = !hidden.has('streamer_name') && c.twitch_display_name;
 
   return (
     <div
@@ -193,7 +198,7 @@ function CharacterCard1080({ c }: { c: Character }) {
         >
           {c.name || '—'}
         </div>
-        {subtitle && (
+        {showSubtitle && (
           <div
             style={{
               ...GRADIENT_TEXT,
@@ -209,6 +214,7 @@ function CharacterCard1080({ c }: { c: Character }) {
       </div>
 
       {/* Right edge: attributes spread top-to-bottom */}
+      {showAttributes && (
       <div
         style={{
           position: 'absolute',
@@ -255,8 +261,10 @@ function CharacterCard1080({ c }: { c: Character }) {
           </div>
         ))}
       </div>
+      )}
 
       {/* Bottom-left: HP / Max HP */}
+      {showHp && (
       <div
         style={{
           position: 'absolute',
@@ -289,9 +297,10 @@ function CharacterCard1080({ c }: { c: Character }) {
           {c.current_hp} / {c.max_hp}
         </span>
       </div>
+      )}
 
       {/* Bottom-center: player (Twitch) name */}
-      {c.twitch_display_name && (
+      {showStreamer && (
         <div
           style={{
             ...GRADIENT_TEXT,
