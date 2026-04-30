@@ -364,10 +364,6 @@ export default function ThemeEditor() {
                 unit="px"
                 onChange={(v) => setPosition('attributesRowGap', v)}
               />
-              <AlignRow
-                value={draft.positions.attributesAlign}
-                onChange={(v) => setPosition('attributesAlign', v)}
-              />
             </PositionGroup>
 
             <PositionGroup label="HP">
@@ -388,10 +384,6 @@ export default function ThemeEditor() {
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('hpY', v)}
-              />
-              <AlignRow
-                value={draft.positions.hpAlign}
-                onChange={(v) => setPosition('hpAlign', v)}
               />
             </PositionGroup>
 
