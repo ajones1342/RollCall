@@ -7,9 +7,11 @@ import {
   FONT_OPTIONS,
   TEXTURE_OPTIONS,
   mergeTheme,
+  type Anchor,
   type Campaign,
   type Character,
   type FillMode,
+  type TextAlign,
   type Theme,
 } from '../lib/types';
 import { CharacterCard1080, ScaleToFit, type DraggableElement } from './Overlay';
@@ -124,7 +126,10 @@ export default function ThemeEditor() {
     }));
   };
 
-  const setPosition = (key: keyof Theme['positions'], value: number) => {
+  const setPosition = <K extends keyof Theme['positions']>(
+    key: K,
+    value: Theme['positions'][K]
+  ) => {
     setDraft((d) => ({
       ...d,
       positions: { ...d.positions, [key]: value },
@@ -321,6 +326,14 @@ export default function ThemeEditor() {
                 unit="px"
                 onChange={(v) => setPosition('nameY', v)}
               />
+              <AnchorRow
+                value={draft.positions.nameAnchor}
+                onChange={(v) => setPosition('nameAnchor', v)}
+              />
+              <AlignRow
+                value={draft.positions.nameAlign}
+                onChange={(v) => setPosition('nameAlign', v)}
+              />
             </PositionGroup>
 
             <PositionGroup label="Attributes">
@@ -351,6 +364,14 @@ export default function ThemeEditor() {
                 unit="px"
                 onChange={(v) => setPosition('attributesRowGap', v)}
               />
+              <AnchorRow
+                value={draft.positions.attributesAnchor}
+                onChange={(v) => setPosition('attributesAnchor', v)}
+              />
+              <AlignRow
+                value={draft.positions.attributesAlign}
+                onChange={(v) => setPosition('attributesAlign', v)}
+              />
             </PositionGroup>
 
             <PositionGroup label="HP">
@@ -371,6 +392,14 @@ export default function ThemeEditor() {
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('hpY', v)}
+              />
+              <AnchorRow
+                value={draft.positions.hpAnchor}
+                onChange={(v) => setPosition('hpAnchor', v)}
+              />
+              <AlignRow
+                value={draft.positions.hpAlign}
+                onChange={(v) => setPosition('hpAlign', v)}
               />
             </PositionGroup>
 
@@ -401,6 +430,14 @@ export default function ThemeEditor() {
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('streamerWidth', v)}
+              />
+              <AnchorRow
+                value={draft.positions.streamerAnchor}
+                onChange={(v) => setPosition('streamerAnchor', v)}
+              />
+              <AlignRow
+                value={draft.positions.streamerAlign}
+                onChange={(v) => setPosition('streamerAlign', v)}
               />
             </PositionGroup>
           </Section>
@@ -563,6 +600,71 @@ function PositionGroup(props: { label: string; children: React.ReactNode }) {
         {props.label}
       </div>
       <div className="space-y-1">{props.children}</div>
+    </div>
+  );
+}
+
+function AnchorRow(props: { value: Anchor; onChange: (v: Anchor) => void }) {
+  const cell = (a: Anchor) => (
+    <button
+      key={a}
+      onClick={() => props.onChange(a)}
+      className={
+        'h-7 rounded text-xs ' +
+        (props.value === a
+          ? 'bg-purple-700 text-white'
+          : 'bg-stone-900 text-stone-400 hover:text-stone-100 border border-stone-700')
+      }
+      title={a}
+    >
+      {a === 'top-left'
+        ? '↖'
+        : a === 'top-right'
+          ? '↗'
+          : a === 'bottom-left'
+            ? '↙'
+            : '↘'}
+    </button>
+  );
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-sm text-stone-400 w-32">Grow from</span>
+      <div className="grid grid-cols-2 gap-1 w-20">
+        {cell('top-left')}
+        {cell('top-right')}
+        {cell('bottom-left')}
+        {cell('bottom-right')}
+      </div>
+    </div>
+  );
+}
+
+function AlignRow(props: { value: TextAlign; onChange: (v: TextAlign) => void }) {
+  const opts: { v: TextAlign; label: string }[] = [
+    { v: 'left', label: 'L' },
+    { v: 'center', label: 'C' },
+    { v: 'right', label: 'R' },
+  ];
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-sm text-stone-400 w-32">Text align</span>
+      <div className="flex gap-1">
+        {opts.map(({ v, label }) => (
+          <button
+            key={v}
+            onClick={() => props.onChange(v)}
+            className={
+              'w-9 h-7 rounded text-xs ' +
+              (props.value === v
+                ? 'bg-purple-700 text-white'
+                : 'bg-stone-900 text-stone-400 hover:text-stone-100 border border-stone-700')
+            }
+            title={v}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

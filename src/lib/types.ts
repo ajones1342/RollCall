@@ -81,26 +81,38 @@ export const TEXTURE_OPTIONS: { value: TexturePreset; label: string }[] = [
 
 // Element positions in a single bottom-left coordinate system.
 // (0, 0) = bottom-left of the 1920x1080 canvas. (1920, 1080) = top-right.
-// Each element has an anchor corner (the corner of itself that (x, y) refers to);
-// the anchor is chosen to match the element's natural visual role:
 //
-//   Name       — anchor: top-left of name block (extends down/right from anchor)
-//   Attributes — anchor: top-right of column   (extends down/left from anchor)
-//   HP         — anchor: bottom-left of block  (extends up/right from anchor)
-//   Streamer   — anchor: bottom-left of container, with explicit width
+// Each element has:
+//   - x, y: position in bottom-left coords. Refers to the anchor corner.
+//   - anchor: which corner of the element (x, y) refers to. The element
+//     extends away from this corner. Lets the GM put the name in the lower
+//     right and have it grow up-left, etc.
+//   - align: text alignment within the element ('left' | 'center' | 'right').
 //
-// User-facing sliders show "Horizontal" and "Vertical" for every element with
-// uniform direction: increase X = move right, increase Y = move up.
+// User-facing sliders show "Horizontal" and "Vertical" with uniform direction
+// for every element: increase X = move right, increase Y = move up.
+
+export type Anchor = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+export type TextAlign = 'left' | 'center' | 'right';
+
 export type Positions = {
   nameX: number;
   nameY: number;
+  nameAnchor: Anchor;
+  nameAlign: TextAlign;
   attributesX: number;
   attributesY: number;
+  attributesAnchor: Anchor;
+  attributesAlign: TextAlign;
   attributesRowGap: number;
   hpX: number;
   hpY: number;
+  hpAnchor: Anchor;
+  hpAlign: TextAlign;
   streamerX: number;
   streamerY: number;
+  streamerAnchor: Anchor;
+  streamerAlign: TextAlign;
   streamerWidth: number;
 };
 
@@ -124,13 +136,21 @@ export function defaultPositions(edgePadding: number = 80): Positions {
   return {
     nameX: edgePadding,
     nameY: 1080 - edgePadding,
+    nameAnchor: 'top-left',
+    nameAlign: 'left',
     attributesX: 1920 - edgePadding,
     attributesY: 1080 - edgePadding,
+    attributesAnchor: 'top-right',
+    attributesAlign: 'right',
     attributesRowGap: 88,
     hpX: edgePadding,
     hpY: edgePadding,
+    hpAnchor: 'bottom-left',
+    hpAlign: 'left',
     streamerX: 0,
     streamerY: edgePadding + 20,
+    streamerAnchor: 'bottom-left',
+    streamerAlign: 'center',
     streamerWidth: 1920,
   };
 }
@@ -144,6 +164,17 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
   const num = (k: string): number | undefined =>
     typeof s[k] === 'number' ? (s[k] as number) : undefined;
 
+  const anchor = (k: string): Anchor | undefined => {
+    const v = s[k];
+    return v === 'top-left' || v === 'top-right' || v === 'bottom-left' || v === 'bottom-right'
+      ? v
+      : undefined;
+  };
+  const align = (k: string): TextAlign | undefined => {
+    const v = s[k];
+    return v === 'left' || v === 'center' || v === 'right' ? v : undefined;
+  };
+
   // If new keys are present, treat as the new shape; fill in any missing.
   if (
     num('nameX') !== undefined ||
@@ -153,13 +184,21 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
     return {
       nameX: num('nameX') ?? def.nameX,
       nameY: num('nameY') ?? def.nameY,
+      nameAnchor: anchor('nameAnchor') ?? def.nameAnchor,
+      nameAlign: align('nameAlign') ?? def.nameAlign,
       attributesX: num('attributesX') ?? def.attributesX,
       attributesY: num('attributesY') ?? def.attributesY,
+      attributesAnchor: anchor('attributesAnchor') ?? def.attributesAnchor,
+      attributesAlign: align('attributesAlign') ?? def.attributesAlign,
       attributesRowGap: num('attributesRowGap') ?? def.attributesRowGap,
       hpX: num('hpX') ?? def.hpX,
       hpY: num('hpY') ?? def.hpY,
+      hpAnchor: anchor('hpAnchor') ?? def.hpAnchor,
+      hpAlign: align('hpAlign') ?? def.hpAlign,
       streamerX: num('streamerX') ?? def.streamerX,
       streamerY: num('streamerY') ?? def.streamerY,
+      streamerAnchor: anchor('streamerAnchor') ?? def.streamerAnchor,
+      streamerAlign: align('streamerAlign') ?? def.streamerAlign,
       streamerWidth: num('streamerWidth') ?? def.streamerWidth,
     };
   }
@@ -170,6 +209,8 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
   return {
     nameX: num('nameLeft') ?? def.nameX,
     nameY: num('nameTop') !== undefined ? 1080 - (num('nameTop') as number) : def.nameY,
+    nameAnchor: def.nameAnchor,
+    nameAlign: def.nameAlign,
     attributesX:
       num('attributesRight') !== undefined
         ? 1920 - (num('attributesRight') as number)
@@ -178,11 +219,17 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
       num('attributesTop') !== undefined
         ? 1080 - (num('attributesTop') as number)
         : def.attributesY,
+    attributesAnchor: def.attributesAnchor,
+    attributesAlign: def.attributesAlign,
     attributesRowGap: def.attributesRowGap,
     hpX: num('hpLeft') ?? def.hpX,
     hpY: num('hpBottom') ?? def.hpY,
+    hpAnchor: def.hpAnchor,
+    hpAlign: def.hpAlign,
     streamerX: oldStreamerLeft,
     streamerY: num('streamerBottom') ?? def.streamerY,
+    streamerAnchor: def.streamerAnchor,
+    streamerAlign: def.streamerAlign,
     streamerWidth: 1920 - oldStreamerLeft - oldStreamerRight,
   };
 }
@@ -251,6 +298,31 @@ export function textureBackground(
     case 'crosshatch':
       return `repeating-linear-gradient(45deg, ${base} 0 2px, transparent 2px 10px), repeating-linear-gradient(-45deg, ${base} 0 2px, ${accent} 2px 10px)`;
   }
+}
+
+// Convert (x, y) in bottom-left coords + an anchor corner into the
+// corresponding CSS positioning props. The anchor corner of the element
+// will be placed at canvas position (x, y).
+export function anchorCss(anchor: Anchor, x: number, y: number): CSSProperties {
+  const css: CSSProperties = { position: 'absolute' };
+  if (anchor === 'top-left' || anchor === 'top-right') {
+    css.top = 1080 - y;
+  } else {
+    css.bottom = y;
+  }
+  if (anchor === 'top-left' || anchor === 'bottom-left') {
+    css.left = x;
+  } else {
+    css.right = 1920 - x;
+  }
+  return css;
+}
+
+// Map a TextAlign value to a flex justify-content / align-items value.
+export function alignToFlex(align: TextAlign): 'flex-start' | 'center' | 'flex-end' {
+  if (align === 'left') return 'flex-start';
+  if (align === 'right') return 'flex-end';
+  return 'center';
 }
 
 // Inline style fragment to apply the theme's fill (solid color, gradient, or

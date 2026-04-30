@@ -5,6 +5,8 @@ import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABELS,
   DEFAULT_THEME,
+  alignToFlex,
+  anchorCss,
   fillStyle,
   mergeTheme,
   normalizeHiddenFields,
@@ -316,16 +318,15 @@ export function CharacterCard1080({
           .rc-drag:active { cursor: grabbing; }
         `}</style>
       )}
-      {/* Name block — anchor: top-left of block at (nameX, nameY) bottom-left coords. */}
+      {/* Name block — anchored corner of block at (nameX, nameY) bottom-left coords. */}
       {showTopLeft && (
         <div
           className={editable ? 'rc-drag' : undefined}
           onMouseDown={editable ? (e) => startDrag(e, 'name') : undefined}
           style={{
-            position: 'absolute',
-            top: 1080 - pos.nameY,
-            left: pos.nameX,
+            ...anchorCss(pos.nameAnchor, pos.nameX, pos.nameY),
             whiteSpace: 'nowrap',
+            textAlign: pos.nameAlign,
             ...dragStyle,
           }}
         >
@@ -373,20 +374,18 @@ export function CharacterCard1080({
         </div>
       )}
 
-      {/* Attributes column — anchor: top-right of column at (attributesX, attributesY)
-          bottom-left coords. Stacks down/left from anchor with attributesRowGap between rows. */}
+      {/* Attributes column — anchored corner of column at (attributesX, attributesY).
+          Rows stack with attributesRowGap; row alignment within column follows attributesAlign. */}
       {showAttributes && (
         <div
           className={editable ? 'rc-drag' : undefined}
           onMouseDown={editable ? (e) => startDrag(e, 'attributes') : undefined}
           style={{
-            position: 'absolute',
-            top: 1080 - pos.attributesY,
-            right: 1920 - pos.attributesX,
+            ...anchorCss(pos.attributesAnchor, pos.attributesX, pos.attributesY),
             display: 'flex',
             flexDirection: 'column',
             gap: pos.attributesRowGap,
-            alignItems: 'flex-end',
+            alignItems: alignToFlex(pos.attributesAlign),
             ...dragStyle,
           }}
         >
@@ -419,18 +418,18 @@ export function CharacterCard1080({
         </div>
       )}
 
-      {/* HP block — anchor: bottom-left of block at (hpX, hpY) bottom-left coords. */}
+      {/* HP block — anchored corner of block at (hpX, hpY). Inner row + death-saves
+          aligned per hpAlign. */}
       {showHp && (
         <div
           className={editable ? 'rc-drag' : undefined}
           onMouseDown={editable ? (e) => startDrag(e, 'hp') : undefined}
           style={{
-            position: 'absolute',
-            bottom: pos.hpY,
-            left: pos.hpX,
+            ...anchorCss(pos.hpAnchor, pos.hpX, pos.hpY),
             display: 'flex',
             flexDirection: 'column',
             gap: 18,
+            alignItems: alignToFlex(pos.hpAlign),
             ...dragStyle,
           }}
         >
@@ -478,18 +477,16 @@ export function CharacterCard1080({
         </div>
       )}
 
-      {/* Streamer container — anchor: bottom-left at (streamerX, streamerY) bottom-left coords.
-          streamerWidth defines the horizontal extent; text is centered inside the container. */}
+      {/* Streamer container — anchored corner at (streamerX, streamerY).
+          streamerWidth defines extent; text aligns inside per streamerAlign. */}
       {showStreamer && (
         <div
           className={editable ? 'rc-drag' : undefined}
           onMouseDown={editable ? (e) => startDrag(e, 'streamer') : undefined}
           style={{
-            position: 'absolute',
-            bottom: pos.streamerY,
-            left: pos.streamerX,
+            ...anchorCss(pos.streamerAnchor, pos.streamerX, pos.streamerY),
             width: pos.streamerWidth,
-            textAlign: 'center',
+            textAlign: pos.streamerAlign,
             ...dragStyle,
           }}
         >
