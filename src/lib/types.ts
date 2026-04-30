@@ -15,6 +15,12 @@ export type Character = {
   charisma: number;
   display_order: number;
   hidden_fields: HideableField[];
+  temp_hp: number;
+  conditions: string[];
+  death_save_successes: number;
+  death_save_failures: number;
+  inspiration: boolean;
+  notes: string;
   twitch_display_name: string | null;
   twitch_avatar_url: string | null;
   created_at: string;
@@ -54,6 +60,8 @@ export type HideableField =
   | 'class'
   | 'hp'
   | 'attributes'
+  | 'inspiration'
+  | 'conditions'
   | 'streamer_name';
 
 export const HIDEABLE_FIELDS: { key: HideableField; label: string }[] = [
@@ -62,6 +70,8 @@ export const HIDEABLE_FIELDS: { key: HideableField; label: string }[] = [
   { key: 'class', label: 'Class' },
   { key: 'hp', label: 'HP' },
   { key: 'attributes', label: 'Attributes' },
+  { key: 'inspiration', label: 'Inspiration star' },
+  { key: 'conditions', label: 'Conditions' },
   { key: 'streamer_name', label: 'Streamer name' },
 ];
 
@@ -71,8 +81,28 @@ const KNOWN_FIELDS: ReadonlySet<HideableField> = new Set([
   'class',
   'hp',
   'attributes',
+  'inspiration',
+  'conditions',
   'streamer_name',
 ]);
+
+// 5e Player's Handbook conditions. Click-to-toggle on the player edit page.
+export const STANDARD_CONDITIONS: readonly string[] = [
+  'Blinded',
+  'Charmed',
+  'Deafened',
+  'Frightened',
+  'Grappled',
+  'Incapacitated',
+  'Invisible',
+  'Paralyzed',
+  'Petrified',
+  'Poisoned',
+  'Prone',
+  'Restrained',
+  'Stunned',
+  'Unconscious',
+];
 
 // Backward compat: an earlier version had a single 'subtitle' toggle that
 // hid race+class together. Old rows with 'subtitle' in hidden_fields get

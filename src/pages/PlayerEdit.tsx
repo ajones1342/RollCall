@@ -6,6 +6,7 @@ import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABELS,
   HIDEABLE_FIELDS,
+  STANDARD_CONDITIONS,
   normalizeHiddenFields,
   type AttributeKey,
   type Character,
@@ -14,7 +15,19 @@ import {
 
 type Draft = Pick<
   Character,
-  'name' | 'race' | 'class' | 'max_hp' | 'current_hp' | AttributeKey | 'hidden_fields'
+  | 'name'
+  | 'race'
+  | 'class'
+  | 'max_hp'
+  | 'current_hp'
+  | 'temp_hp'
+  | AttributeKey
+  | 'hidden_fields'
+  | 'conditions'
+  | 'death_save_successes'
+  | 'death_save_failures'
+  | 'inspiration'
+  | 'notes'
 >;
 
 const blankDraft: Draft = {
@@ -23,6 +36,7 @@ const blankDraft: Draft = {
   class: '',
   max_hp: 1,
   current_hp: 1,
+  temp_hp: 0,
   strength: 10,
   agility: 10,
   constitution: 10,
@@ -30,6 +44,11 @@ const blankDraft: Draft = {
   wisdom: 10,
   charisma: 10,
   hidden_fields: [],
+  conditions: [],
+  death_save_successes: 0,
+  death_save_failures: 0,
+  inspiration: false,
+  notes: '',
 };
 
 type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
@@ -126,6 +145,26 @@ export default function PlayerEdit() {
     });
   };
 
+  const toggleCondition = (cond: string) => {
+    setDraft((d) => {
+      const has = d.conditions.includes(cond);
+      return {
+        ...d,
+        conditions: has
+          ? d.conditions.filter((c) => c !== cond)
+          : [...d.conditions, cond],
+      };
+    });
+  };
+
+  const setDeathSaves = (successes: number, failures: number) => {
+    setDraft((d) => ({
+      ...d,
+      death_save_successes: clampDeathSave(successes),
+      death_save_failures: clampDeathSave(failures),
+    }));
+  };
+
   if (loading || !character) return <div className="p-8">Loading…</div>;
 
   const editingAsGM = Boolean(characterId) && character.user_id !== session?.user.id;
@@ -166,8 +205,8 @@ export default function PlayerEdit() {
       </div>
 
       <h2 className="text-xl mb-2">Hit Points</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-        <div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div className="sm:col-span-2">
           <span className="text-xs uppercase tracking-wide text-stone-400 mb-1 block">
             Current HP
           </span>
@@ -194,6 +233,80 @@ export default function PlayerEdit() {
             className="input"
           />
         </Field>
+        <Field label="Temp HP">
+          <input
+            type="number"
+            value={draft.temp_hp}
+            onChange={(e) =>
+              setField('temp_hp', Math.max(0, parseInt(e.target.value || '0', 10)))
+            }
+            className="input"
+          />
+        </Field>
+      </div>
+
+      <h2 className="text-xl mb-2">Combat State</h2>
+      <div className="bg-stone-800 border border-stone-700 rounded p-4 mb-6 space-y-4">
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={draft.inspiration}
+            onChange={(e) => setField('inspiration', e.target.checked)}
+            className="w-4 h-4"
+          />
+          <span className="text-stone-200">Inspiration ★</span>
+        </label>
+
+        <div>
+          <span className="text-xs uppercase tracking-wide text-stone-400 mb-1 block">
+            Death Saves
+          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <SaveDots
+              label="Successes"
+              count={draft.death_save_successes}
+              filledColor="bg-emerald-500"
+              onSet={(n) => setDeathSaves(n, draft.death_save_failures)}
+            />
+            <SaveDots
+              label="Failures"
+              count={draft.death_save_failures}
+              filledColor="bg-red-500"
+              onSet={(n) => setDeathSaves(draft.death_save_successes, n)}
+            />
+            <button
+              onClick={() => setDeathSaves(0, 0)}
+              className="text-xs text-stone-400 hover:text-stone-200 underline ml-auto"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <span className="text-xs uppercase tracking-wide text-stone-400 mb-1 block">
+            Conditions
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {STANDARD_CONDITIONS.map((cond) => {
+              const active = draft.conditions.includes(cond);
+              return (
+                <button
+                  key={cond}
+                  onClick={() => toggleCondition(cond)}
+                  className={
+                    'text-sm px-2.5 py-1 rounded border transition-colors ' +
+                    (active
+                      ? 'bg-amber-700 border-amber-600 text-amber-50'
+                      : 'bg-stone-900 border-stone-600 text-stone-400 hover:text-stone-200')
+                  }
+                >
+                  {cond}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <h2 className="text-xl mb-2">Attributes</h2>
@@ -209,6 +322,17 @@ export default function PlayerEdit() {
           </Field>
         ))}
       </div>
+
+      <h2 className="text-xl mb-2">Notes</h2>
+      <p className="text-sm text-stone-500 mb-2">
+        Personal scratch space for the player and GM. Not shown on the overlay.
+      </p>
+      <textarea
+        value={draft.notes}
+        onChange={(e) => setField('notes', e.target.value)}
+        rows={6}
+        className="input resize-y mb-8"
+      />
 
       <h2 className="text-xl mb-2">Show on Overlay</h2>
       <p className="text-sm text-stone-500 mb-3">
@@ -264,6 +388,39 @@ function HPButton(props: { onClick: () => void; children: React.ReactNode }) {
   );
 }
 
+function SaveDots(props: {
+  label: string;
+  count: number;
+  filledColor: string;
+  onSet: (n: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs uppercase tracking-wide text-stone-400">
+        {props.label}
+      </span>
+      <div className="flex gap-1">
+        {[1, 2, 3].map((n) => {
+          const filled = props.count >= n;
+          return (
+            <button
+              key={n}
+              onClick={() => props.onSet(filled && props.count === n ? n - 1 : n)}
+              className={
+                'w-6 h-6 rounded-full border-2 transition-colors ' +
+                (filled
+                  ? `${props.filledColor} border-transparent`
+                  : 'bg-transparent border-stone-500 hover:border-stone-300')
+              }
+              aria-label={`${props.label} ${n}`}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SaveIndicator(props: {
   state: SaveState;
   dirty: boolean;
@@ -299,6 +456,13 @@ function Field(props: { label: string; children: React.ReactNode }) {
   );
 }
 
+function clampDeathSave(n: number): number {
+  if (Number.isNaN(n)) return 0;
+  if (n < 0) return 0;
+  if (n > 3) return 3;
+  return n;
+}
+
 function toDraft(ch: Character): Draft {
   return {
     name: ch.name,
@@ -306,6 +470,7 @@ function toDraft(ch: Character): Draft {
     class: ch.class,
     max_hp: ch.max_hp,
     current_hp: ch.current_hp,
+    temp_hp: ch.temp_hp ?? 0,
     strength: ch.strength,
     agility: ch.agility,
     constitution: ch.constitution,
@@ -313,21 +478,33 @@ function toDraft(ch: Character): Draft {
     wisdom: ch.wisdom,
     charisma: ch.charisma,
     hidden_fields: normalizeHiddenFields(ch.hidden_fields),
+    conditions: ch.conditions ?? [],
+    death_save_successes: ch.death_save_successes ?? 0,
+    death_save_failures: ch.death_save_failures ?? 0,
+    inspiration: ch.inspiration ?? false,
+    notes: ch.notes ?? '',
   };
 }
 
 function draftDiffers(draft: Draft, ch: Character): boolean {
   for (const k of Object.keys(draft) as (keyof Draft)[]) {
-    if (k === 'hidden_fields') {
-      const a = draft.hidden_fields;
-      const b = ch.hidden_fields ?? [];
-      if (a.length !== b.length) return true;
-      const sa = [...a].sort();
-      const sb = [...b].sort();
-      for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return true;
+    if (k === 'hidden_fields' || k === 'conditions') {
+      if (!sameStringSet(draft[k] as string[], (ch[k] as string[]) ?? [])) {
+        return true;
+      }
       continue;
     }
     if (draft[k] !== ch[k]) return true;
   }
   return false;
+}
+
+function sameStringSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  for (let i = 0; i < sa.length; i++) {
+    if (sa[i] !== sb[i]) return false;
+  }
+  return true;
 }

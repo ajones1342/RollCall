@@ -172,6 +172,41 @@ function ScaleToFitInner({
   );
 }
 
+function DeathSavesIndicator({
+  successes,
+  failures,
+}: {
+  successes: number;
+  failures: number;
+}) {
+  const dot = (filled: boolean, color: string) => (
+    <div
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: '50%',
+        background: filled ? color : 'transparent',
+        border: filled ? 'none' : `4px solid ${color}`,
+        boxSizing: 'border-box',
+      }}
+    />
+  );
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+      <div style={{ display: 'flex', gap: 10 }}>
+        {[1, 2, 3].map((n) => (
+          <div key={`s${n}`}>{dot(successes >= n, '#10b981')}</div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        {[1, 2, 3].map((n) => (
+          <div key={`f${n}`}>{dot(failures >= n, '#ef4444')}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CharacterCard1080({ c }: { c: Character }) {
   const hidden = new Set(normalizeHiddenFields(c.hidden_fields));
   const showName = !hidden.has('name');
@@ -182,8 +217,13 @@ function CharacterCard1080({ c }: { c: Character }) {
   );
   const subtitle = subtitleParts.join(' · ');
   const showSubtitle = subtitle.length > 0;
-  const showTopLeft = showName || showSubtitle;
+  const conditions = (c.conditions ?? []).filter(Boolean);
+  const showConditions = !hidden.has('conditions') && conditions.length > 0;
+  const showTopLeft = showName || showSubtitle || showConditions;
+  const showInspiration = !hidden.has('inspiration') && Boolean(c.inspiration);
   const showHp = !hidden.has('hp');
+  const tempHp = c.temp_hp ?? 0;
+  const showDeathSaves = showHp && c.current_hp === 0;
   const showAttributes = !hidden.has('attributes');
   const showStreamer = !hidden.has('streamer_name') && c.twitch_display_name;
 
@@ -210,6 +250,7 @@ function CharacterCard1080({ c }: { c: Character }) {
                 letterSpacing: '0.04em',
               }}
             >
+              {showInspiration && <span style={{ marginRight: 18 }}>★</span>}
               {c.name || '—'}
             </div>
           )}
@@ -224,6 +265,20 @@ function CharacterCard1080({ c }: { c: Character }) {
               }}
             >
               {subtitle}
+            </div>
+          )}
+          {showConditions && (
+            <div
+              style={{
+                ...GRADIENT_TEXT,
+                fontSize: 32,
+                marginTop: 14,
+                letterSpacing: '0.1em',
+                opacity: 0.85,
+                fontStyle: 'italic',
+              }}
+            >
+              {conditions.map((c) => c.toLowerCase()).join(', ')}
             </div>
           )}
         </div>
@@ -279,40 +334,60 @@ function CharacterCard1080({ c }: { c: Character }) {
       </div>
       )}
 
-      {/* Bottom-left: HP / Max HP */}
+      {/* Bottom-left: HP, optional temp HP, optional death saves */}
       {showHp && (
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 80,
-          left: 100,
-          display: 'flex',
-          alignItems: 'baseline',
-          gap: 18,
-        }}
-      >
-        <span
+        <div
           style={{
-            ...GRADIENT_TEXT,
-            fontSize: 44,
-            opacity: 0.85,
-            letterSpacing: '0.12em',
+            position: 'absolute',
+            bottom: 80,
+            left: 100,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 18,
           }}
         >
-          HP
-        </span>
-        <span
-          style={{
-            ...GRADIENT_TEXT,
-            fontSize: 84,
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            lineHeight: 1,
-          }}
-        >
-          {c.current_hp} / {c.max_hp}
-        </span>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
+            <span
+              style={{
+                ...GRADIENT_TEXT,
+                fontSize: 44,
+                opacity: 0.85,
+                letterSpacing: '0.12em',
+              }}
+            >
+              HP
+            </span>
+            <span
+              style={{
+                ...GRADIENT_TEXT,
+                fontSize: 84,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                lineHeight: 1,
+              }}
+            >
+              {c.current_hp} / {c.max_hp}
+            </span>
+            {tempHp > 0 && (
+              <span
+                style={{
+                  ...GRADIENT_TEXT,
+                  fontSize: 44,
+                  opacity: 0.85,
+                  letterSpacing: '0.04em',
+                }}
+              >
+                +{tempHp}
+              </span>
+            )}
+          </div>
+          {showDeathSaves && (
+            <DeathSavesIndicator
+              successes={c.death_save_successes ?? 0}
+              failures={c.death_save_failures ?? 0}
+            />
+          )}
+        </div>
       )}
 
       {/* Bottom-center: player (Twitch) name */}
