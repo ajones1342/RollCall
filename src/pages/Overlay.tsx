@@ -179,7 +179,7 @@ function CharacterCard1080({ c }: { c: Character }) {
       <div style={{ position: 'absolute', top: 80, left: 100, maxWidth: 1100 }}>
         <div
           style={{
-            fontSize: 120,
+            fontSize: 96,
             fontWeight: 700,
             lineHeight: 1,
             letterSpacing: '0.04em',
@@ -269,7 +269,7 @@ function CharacterCard1080({ c }: { c: Character }) {
         </span>
         <span
           style={{
-            fontSize: 110,
+            fontSize: 84,
             fontWeight: 700,
             letterSpacing: '0.04em',
             lineHeight: 1,
@@ -287,7 +287,7 @@ function CharacterCard1080({ c }: { c: Character }) {
             bottom: 100,
             left: '50%',
             transform: 'translateX(-50%)',
-            fontSize: 52,
+            fontSize: 80,
             letterSpacing: '0.12em',
             opacity: 0.92,
             whiteSpace: 'nowrap',
