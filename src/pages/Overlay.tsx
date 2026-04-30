@@ -4,22 +4,19 @@ import { supabase } from '../lib/supabase';
 import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABELS,
+  DEFAULT_THEME,
+  fillStyle,
+  mergeTheme,
   normalizeHiddenFields,
   type Character,
+  type Theme,
 } from '../lib/types';
 
-const GRADIENT_TEXT: React.CSSProperties = {
-  background: 'linear-gradient(85deg, #02fdfc, #c22cff)',
-  WebkitBackgroundClip: 'text',
-  backgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  color: 'transparent',
-};
-
-// drop-shadow (not text-shadow) renders against the actual painted text,
-// which is required when the fill is transparent (gradient text).
-const CARD_FILTER =
-  'drop-shadow(0 4px 8px rgba(0,0,0,0.9)) drop-shadow(0 0 4px rgba(0,0,0,0.85))';
+function cardFilter(strength: number): string {
+  const a = 0.9 * strength;
+  const b = 0.85 * strength;
+  return `drop-shadow(0 4px 8px rgba(0,0,0,${a})) drop-shadow(0 0 4px rgba(0,0,0,${b}))`;
+}
 
 export default function Overlay() {
   const { campaignId, characterId } = useParams<{
@@ -27,6 +24,7 @@ export default function Overlay() {
     characterId?: string;
   }>();
   const [characters, setCharacters] = useState<Character[]>([]);
+  const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
 
   useEffect(() => {
     document.body.classList.add('overlay-mode');
@@ -36,16 +34,26 @@ export default function Overlay() {
   useEffect(() => {
     if (!campaignId) return;
 
-    const refresh = async () => {
+    const refreshCharacters = async () => {
       const query = supabase.from('characters').select('*').eq('campaign_id', campaignId);
       if (characterId) query.eq('id', characterId);
       const { data } = await query.order('display_order', { ascending: true });
       setCharacters((data as Character[]) ?? []);
     };
 
-    refresh();
+    const refreshTheme = async () => {
+      const { data } = await supabase
+        .from('campaigns')
+        .select('theme')
+        .eq('id', campaignId)
+        .maybeSingle();
+      setTheme(mergeTheme((data as { theme: Partial<Theme> } | null)?.theme));
+    };
 
-    const filter = characterId
+    refreshCharacters();
+    refreshTheme();
+
+    const charFilter = characterId
       ? `id=eq.${characterId}`
       : `campaign_id=eq.${campaignId}`;
 
@@ -53,8 +61,18 @@ export default function Overlay() {
       .channel(`overlay:${campaignId}:${characterId ?? 'all'}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'characters', filter },
-        () => refresh()
+        { event: '*', schema: 'public', table: 'characters', filter: charFilter },
+        () => refreshCharacters()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'campaigns',
+          filter: `id=eq.${campaignId}`,
+        },
+        () => refreshTheme()
       )
       .subscribe();
 
@@ -68,7 +86,7 @@ export default function Overlay() {
     if (!c) return null;
     return (
       <ScaleToFit>
-        <CharacterCard1080 c={c} />
+        <CharacterCard1080 c={c} theme={theme} />
       </ScaleToFit>
     );
   }
@@ -96,7 +114,7 @@ export default function Overlay() {
           }}
         >
           <ScaleToFit>
-            <CharacterCard1080 c={c} />
+            <CharacterCard1080 c={c} theme={theme} />
           </ScaleToFit>
         </div>
       ))}
@@ -104,7 +122,7 @@ export default function Overlay() {
   );
 }
 
-function ScaleToFit({ children }: { children: React.ReactNode }) {
+export function ScaleToFit({ children }: { children: React.ReactNode }) {
   const [size, setSize] = useState({ w: 1920, h: 1080 });
 
   useEffect(() => {
@@ -116,9 +134,7 @@ function ScaleToFit({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  return (
-    <ScaleToFitInner parentSize={size}>{children}</ScaleToFitInner>
-  );
+  return <ScaleToFitInner parentSize={size}>{children}</ScaleToFitInner>;
 }
 
 function ScaleToFitInner({
@@ -207,7 +223,10 @@ function DeathSavesIndicator({
   );
 }
 
-function CharacterCard1080({ c }: { c: Character }) {
+export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) {
+  const fill = fillStyle(theme);
+  const pad = theme.edgePadding;
+  const sz = theme.fontSizes;
   const hidden = new Set(normalizeHiddenFields(c.hidden_fields));
   const showName = !hidden.has('name');
   const showRace = !hidden.has('race') && Boolean(c.race);
@@ -233,18 +252,20 @@ function CharacterCard1080({ c }: { c: Character }) {
         position: 'relative',
         width: 1920,
         height: 1080,
-        fontFamily: "'Cinzel', serif",
-        filter: CARD_FILTER,
+        fontFamily: `'${theme.fontFamily}', serif`,
+        filter: cardFilter(theme.shadowStrength),
       }}
     >
-      {/* Top-left: name + race/class */}
+      {/* Top-left: name + race/class + conditions */}
       {showTopLeft && (
-        <div style={{ position: 'absolute', top: 80, left: 100, maxWidth: 1100 }}>
+        <div
+          style={{ position: 'absolute', top: pad, left: pad, maxWidth: 1920 - pad * 2 - 200 }}
+        >
           {showName && (
             <div
               style={{
-                ...GRADIENT_TEXT,
-                fontSize: 96,
+                ...fill,
+                fontSize: sz.name,
                 fontWeight: 700,
                 lineHeight: 1,
                 letterSpacing: '0.04em',
@@ -257,8 +278,8 @@ function CharacterCard1080({ c }: { c: Character }) {
           {showSubtitle && (
             <div
               style={{
-                ...GRADIENT_TEXT,
-                fontSize: 48,
+                ...fill,
+                fontSize: sz.subtitle,
                 marginTop: showName ? 18 : 0,
                 letterSpacing: '0.1em',
                 opacity: 0.92,
@@ -270,15 +291,15 @@ function CharacterCard1080({ c }: { c: Character }) {
           {showConditions && (
             <div
               style={{
-                ...GRADIENT_TEXT,
-                fontSize: 32,
+                ...fill,
+                fontSize: sz.conditions,
                 marginTop: 14,
                 letterSpacing: '0.1em',
                 opacity: 0.85,
                 fontStyle: 'italic',
               }}
             >
-              {conditions.map((c) => c.toLowerCase()).join(', ')}
+              {conditions.map((cond) => cond.toLowerCase()).join(', ')}
             </div>
           )}
         </div>
@@ -286,52 +307,45 @@ function CharacterCard1080({ c }: { c: Character }) {
 
       {/* Right edge: attributes spread top-to-bottom */}
       {showAttributes && (
-      <div
-        style={{
-          position: 'absolute',
-          top: 80,
-          bottom: 80,
-          right: 80,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-        }}
-      >
-        {ATTRIBUTE_KEYS.map((k) => (
-          <div
-            key={k}
-            style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: 24,
-            }}
-          >
-            <span
-              style={{
-                ...GRADIENT_TEXT,
-                fontSize: 44,
-                opacity: 0.85,
-                letterSpacing: '0.12em',
-              }}
-            >
-              {ATTRIBUTE_LABELS[k]}
-            </span>
-            <span
-              style={{
-                ...GRADIENT_TEXT,
-                fontSize: 80,
-                fontWeight: 700,
-                minWidth: 130,
-                textAlign: 'right',
-                lineHeight: 1,
-              }}
-            >
-              {c[k]}
-            </span>
-          </div>
-        ))}
-      </div>
+        <div
+          style={{
+            position: 'absolute',
+            top: pad,
+            bottom: pad,
+            right: pad,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+          }}
+        >
+          {ATTRIBUTE_KEYS.map((k) => (
+            <div key={k} style={{ display: 'flex', alignItems: 'baseline', gap: 24 }}>
+              <span
+                style={{
+                  ...fill,
+                  fontSize: sz.attributeLabel,
+                  opacity: 0.85,
+                  letterSpacing: '0.12em',
+                }}
+              >
+                {ATTRIBUTE_LABELS[k]}
+              </span>
+              <span
+                style={{
+                  ...fill,
+                  fontSize: sz.attributeValue,
+                  fontWeight: 700,
+                  minWidth: 130,
+                  textAlign: 'right',
+                  lineHeight: 1,
+                }}
+              >
+                {c[k]}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Bottom-left: HP, optional temp HP, optional death saves */}
@@ -339,8 +353,8 @@ function CharacterCard1080({ c }: { c: Character }) {
         <div
           style={{
             position: 'absolute',
-            bottom: 80,
-            left: 100,
+            bottom: pad,
+            left: pad,
             display: 'flex',
             flexDirection: 'column',
             gap: 18,
@@ -349,8 +363,8 @@ function CharacterCard1080({ c }: { c: Character }) {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
             <span
               style={{
-                ...GRADIENT_TEXT,
-                fontSize: 44,
+                ...fill,
+                fontSize: sz.hpLabel,
                 opacity: 0.85,
                 letterSpacing: '0.12em',
               }}
@@ -359,8 +373,8 @@ function CharacterCard1080({ c }: { c: Character }) {
             </span>
             <span
               style={{
-                ...GRADIENT_TEXT,
-                fontSize: 84,
+                ...fill,
+                fontSize: sz.hpValue,
                 fontWeight: 700,
                 letterSpacing: '0.04em',
                 lineHeight: 1,
@@ -371,8 +385,8 @@ function CharacterCard1080({ c }: { c: Character }) {
             {tempHp > 0 && (
               <span
                 style={{
-                  ...GRADIENT_TEXT,
-                  fontSize: 44,
+                  ...fill,
+                  fontSize: sz.hpLabel,
                   opacity: 0.85,
                   letterSpacing: '0.04em',
                 }}
@@ -390,16 +404,16 @@ function CharacterCard1080({ c }: { c: Character }) {
         </div>
       )}
 
-      {/* Bottom-center: player (Twitch) name */}
+      {/* Bottom-center: streamer name */}
       {showStreamer && (
         <div
           style={{
-            ...GRADIENT_TEXT,
+            ...fill,
             position: 'absolute',
-            bottom: 100,
+            bottom: pad + 20,
             left: '50%',
             transform: 'translateX(-50%)',
-            fontSize: 92,
+            fontSize: sz.streamerName,
             letterSpacing: '0.12em',
             opacity: 0.92,
             whiteSpace: 'nowrap',
@@ -411,3 +425,4 @@ function CharacterCard1080({ c }: { c: Character }) {
     </div>
   );
 }
+

@@ -113,7 +113,15 @@ export default function CampaignManage() {
       <Link to="/gm" className="text-sm text-stone-400 hover:text-stone-200">
         ← Campaigns
       </Link>
-      <h1 className="text-4xl tracking-wider mt-2 mb-6">{campaign.name}</h1>
+      <div className="flex items-baseline justify-between gap-4 mt-2 mb-6">
+        <h1 className="text-4xl tracking-wider">{campaign.name}</h1>
+        <Link
+          to={`/gm/${campaign.id}/theme`}
+          className="text-sm px-3 py-1.5 bg-stone-700 hover:bg-stone-600 rounded whitespace-nowrap"
+        >
+          Edit overlay theme
+        </Link>
+      </div>
 
       <section className="mb-8 grid gap-3">
         <UrlRow
