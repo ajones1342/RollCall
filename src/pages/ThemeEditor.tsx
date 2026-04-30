@@ -477,7 +477,7 @@ export default function ThemeEditor() {
           </p>
           <div
             className="relative border border-stone-700 rounded overflow-hidden"
-            style={{ aspectRatio: '16 / 9', background: '#6b7280' }}
+            style={{ aspectRatio: '16 / 9', background: '#4b5563' }}
           >
             <ScaleToFit>
               <CharacterCard1080 c={SAMPLE_CHARACTER} theme={draft} />
