@@ -48,11 +48,49 @@ export const ATTRIBUTE_LABELS: Record<AttributeKey, string> = {
   charisma: 'CHA',
 };
 
-export type HideableField = 'subtitle' | 'hp' | 'attributes' | 'streamer_name';
+export type HideableField =
+  | 'name'
+  | 'race'
+  | 'class'
+  | 'hp'
+  | 'attributes'
+  | 'streamer_name';
 
 export const HIDEABLE_FIELDS: { key: HideableField; label: string }[] = [
-  { key: 'subtitle', label: 'Race / Class' },
+  { key: 'name', label: 'Character name' },
+  { key: 'race', label: 'Race' },
+  { key: 'class', label: 'Class' },
   { key: 'hp', label: 'HP' },
   { key: 'attributes', label: 'Attributes' },
   { key: 'streamer_name', label: 'Streamer name' },
 ];
+
+const KNOWN_FIELDS: ReadonlySet<HideableField> = new Set([
+  'name',
+  'race',
+  'class',
+  'hp',
+  'attributes',
+  'streamer_name',
+]);
+
+// Backward compat: an earlier version had a single 'subtitle' toggle that
+// hid race+class together. Old rows with 'subtitle' in hidden_fields get
+// expanded to ['race', 'class']; unknown values are dropped.
+export function normalizeHiddenFields(
+  input: readonly string[] | null | undefined
+): HideableField[] {
+  if (!input) return [];
+  const set = new Set<HideableField>();
+  for (const f of input) {
+    if (f === 'subtitle') {
+      set.add('race');
+      set.add('class');
+      continue;
+    }
+    if (KNOWN_FIELDS.has(f as HideableField)) {
+      set.add(f as HideableField);
+    }
+  }
+  return Array.from(set);
+}

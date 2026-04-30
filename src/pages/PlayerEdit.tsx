@@ -6,6 +6,7 @@ import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABELS,
   HIDEABLE_FIELDS,
+  normalizeHiddenFields,
   type AttributeKey,
   type Character,
   type HideableField,
@@ -66,7 +67,10 @@ export default function PlayerEdit() {
         else navigate(`/join/${campaignId}`, { replace: true });
         return;
       }
-      const ch = data as Character;
+      const ch: Character = {
+        ...(data as Character),
+        hidden_fields: normalizeHiddenFields((data as Character).hidden_fields),
+      };
       setCharacter(ch);
       setDraft(toDraft(ch));
     });
@@ -308,7 +312,7 @@ function toDraft(ch: Character): Draft {
     intelligence: ch.intelligence,
     wisdom: ch.wisdom,
     charisma: ch.charisma,
-    hidden_fields: ch.hidden_fields ?? [],
+    hidden_fields: normalizeHiddenFields(ch.hidden_fields),
   };
 }
 

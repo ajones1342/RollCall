@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { ATTRIBUTE_KEYS, ATTRIBUTE_LABELS, type Character } from '../lib/types';
+import {
+  ATTRIBUTE_KEYS,
+  ATTRIBUTE_LABELS,
+  normalizeHiddenFields,
+  type Character,
+} from '../lib/types';
 
 const GRADIENT_TEXT: React.CSSProperties = {
   background: 'linear-gradient(85deg, #02fdfc, #c22cff)',
@@ -168,9 +173,16 @@ function ScaleToFitInner({
 }
 
 function CharacterCard1080({ c }: { c: Character }) {
-  const hidden = new Set(c.hidden_fields ?? []);
-  const subtitle = [c.race, c.class].filter(Boolean).join(' · ');
-  const showSubtitle = subtitle && !hidden.has('subtitle');
+  const hidden = new Set(normalizeHiddenFields(c.hidden_fields));
+  const showName = !hidden.has('name');
+  const showRace = !hidden.has('race') && Boolean(c.race);
+  const showClass = !hidden.has('class') && Boolean(c.class);
+  const subtitleParts = [showRace ? c.race : null, showClass ? c.class : null].filter(
+    (p): p is string => Boolean(p)
+  );
+  const subtitle = subtitleParts.join(' · ');
+  const showSubtitle = subtitle.length > 0;
+  const showTopLeft = showName || showSubtitle;
   const showHp = !hidden.has('hp');
   const showAttributes = !hidden.has('attributes');
   const showStreamer = !hidden.has('streamer_name') && c.twitch_display_name;
@@ -186,32 +198,36 @@ function CharacterCard1080({ c }: { c: Character }) {
       }}
     >
       {/* Top-left: name + race/class */}
-      <div style={{ position: 'absolute', top: 80, left: 100, maxWidth: 1100 }}>
-        <div
-          style={{
-            ...GRADIENT_TEXT,
-            fontSize: 96,
-            fontWeight: 700,
-            lineHeight: 1,
-            letterSpacing: '0.04em',
-          }}
-        >
-          {c.name || '—'}
+      {showTopLeft && (
+        <div style={{ position: 'absolute', top: 80, left: 100, maxWidth: 1100 }}>
+          {showName && (
+            <div
+              style={{
+                ...GRADIENT_TEXT,
+                fontSize: 96,
+                fontWeight: 700,
+                lineHeight: 1,
+                letterSpacing: '0.04em',
+              }}
+            >
+              {c.name || '—'}
+            </div>
+          )}
+          {showSubtitle && (
+            <div
+              style={{
+                ...GRADIENT_TEXT,
+                fontSize: 48,
+                marginTop: showName ? 18 : 0,
+                letterSpacing: '0.1em',
+                opacity: 0.92,
+              }}
+            >
+              {subtitle}
+            </div>
+          )}
         </div>
-        {showSubtitle && (
-          <div
-            style={{
-              ...GRADIENT_TEXT,
-              fontSize: 48,
-              marginTop: 18,
-              letterSpacing: '0.1em',
-              opacity: 0.92,
-            }}
-          >
-            {subtitle}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Right edge: attributes spread top-to-bottom */}
       {showAttributes && (
