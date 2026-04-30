@@ -287,7 +287,7 @@ function CharacterCard1080({ c }: { c: Character }) {
             bottom: 100,
             left: '50%',
             transform: 'translateX(-50%)',
-            fontSize: 80,
+            fontSize: 92,
             letterSpacing: '0.12em',
             opacity: 0.92,
             whiteSpace: 'nowrap',
