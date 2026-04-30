@@ -12,7 +12,7 @@ import {
   type FillMode,
   type Theme,
 } from '../lib/types';
-import { CharacterCard1080, ScaleToFit } from './Overlay';
+import { CharacterCard1080, ScaleToFit, type DraggableElement } from './Overlay';
 
 const SAMPLE_CHARACTER: Character = {
   id: 'preview',
@@ -53,6 +53,7 @@ export default function ThemeEditor() {
   const [draft, setDraft] = useState<Theme>(DEFAULT_THEME);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
   const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -128,6 +129,26 @@ export default function ThemeEditor() {
       ...d,
       positions: { ...d.positions, [key]: value },
     }));
+  };
+
+  const handleDrag = (element: DraggableElement, x: number, y: number) => {
+    setDraft((d) => {
+      const p = { ...d.positions };
+      if (element === 'name') {
+        p.nameX = x;
+        p.nameY = y;
+      } else if (element === 'attributes') {
+        p.attributesX = x;
+        p.attributesY = y;
+      } else if (element === 'hp') {
+        p.hpX = x;
+        p.hpY = y;
+      } else {
+        p.streamerX = x;
+        p.streamerY = y;
+      }
+      return { ...d, positions: p };
+    });
   };
 
   const reset = () => {
@@ -472,20 +493,39 @@ export default function ThemeEditor() {
 
         {/* Live preview */}
         <div className="lg:sticky lg:top-6 self-start">
-          <p className="text-xs uppercase tracking-wide text-stone-400 mb-2">
-            Live preview (sample character)
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs uppercase tracking-wide text-stone-400">
+              Live preview (sample character)
+            </p>
+            <button
+              onClick={() => setEditMode((v) => !v)}
+              className={
+                'text-xs px-3 py-1 rounded border ' +
+                (editMode
+                  ? 'bg-purple-700 border-purple-600 text-white'
+                  : 'bg-stone-800 border-stone-600 text-stone-300 hover:text-stone-100')
+              }
+            >
+              {editMode ? 'Editing positions' : 'Edit positions'}
+            </button>
+          </div>
           <div
             className="relative border border-stone-700 rounded overflow-hidden"
             style={{ aspectRatio: '16 / 9', background: '#374151' }}
           >
             <ScaleToFit>
-              <CharacterCard1080 c={SAMPLE_CHARACTER} theme={draft} />
+              <CharacterCard1080
+                c={SAMPLE_CHARACTER}
+                theme={draft}
+                editable={editMode}
+                onPositionChange={handleDrag}
+              />
             </ScaleToFit>
           </div>
           <p className="text-xs text-stone-500 mt-2">
-            Preview shows a placeholder character. Real characters in your campaign
-            inherit these settings on their overlay URL.
+            {editMode
+              ? 'Click and drag any element to reposition. Sliders update with you.'
+              : 'Preview shows a placeholder character. Real characters in your campaign inherit these settings on their overlay URL.'}
           </p>
         </div>
       </div>

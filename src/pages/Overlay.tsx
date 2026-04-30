@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import {
@@ -223,10 +223,62 @@ function DeathSavesIndicator({
   );
 }
 
-export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) {
+export type DraggableElement = 'name' | 'attributes' | 'hp' | 'streamer';
+
+export function CharacterCard1080({
+  c,
+  theme,
+  editable,
+  onPositionChange,
+}: {
+  c: Character;
+  theme: Theme;
+  editable?: boolean;
+  onPositionChange?: (element: DraggableElement, x: number, y: number) => void;
+}) {
   const fill = fillStyle(theme);
   const pos = theme.positions;
   const sz = theme.fontSizes;
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const startDrag = (e: React.MouseEvent, element: DraggableElement) => {
+    if (!editable || !onPositionChange || !cardRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = cardRef.current.getBoundingClientRect();
+    const scale = rect.width / 1920;
+    const startX =
+      element === 'name'
+        ? pos.nameX
+        : element === 'attributes'
+          ? pos.attributesX
+          : element === 'hp'
+            ? pos.hpX
+            : pos.streamerX;
+    const startY =
+      element === 'name'
+        ? pos.nameY
+        : element === 'attributes'
+          ? pos.attributesY
+          : element === 'hp'
+            ? pos.hpY
+            : pos.streamerY;
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    const onMove = (ev: MouseEvent) => {
+      const dx = (ev.clientX - startMouseX) / scale;
+      const dy = -(ev.clientY - startMouseY) / scale; // screen-down is positive; design-up is positive
+      onPositionChange(element, Math.round(startX + dx), Math.round(startY + dy));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const dragStyle: React.CSSProperties = editable ? { cursor: 'grab' } : {};
   const hidden = new Set(normalizeHiddenFields(c.hidden_fields));
   const showName = !hidden.has('name');
   const showRace = !hidden.has('race') && Boolean(c.race);
@@ -248,6 +300,7 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
 
   return (
     <div
+      ref={cardRef}
       style={{
         position: 'relative',
         width: 1920,
@@ -256,14 +309,24 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
         filter: cardFilter(theme.shadowStrength),
       }}
     >
+      {editable && (
+        <style>{`
+          .rc-drag { cursor: grab; }
+          .rc-drag:hover { outline: 3px dashed rgba(255,255,255,0.35); outline-offset: 12px; }
+          .rc-drag:active { cursor: grabbing; }
+        `}</style>
+      )}
       {/* Name block — anchor: top-left of block at (nameX, nameY) bottom-left coords. */}
       {showTopLeft && (
         <div
+          className={editable ? 'rc-drag' : undefined}
+          onMouseDown={editable ? (e) => startDrag(e, 'name') : undefined}
           style={{
             position: 'absolute',
             top: 1080 - pos.nameY,
             left: pos.nameX,
             maxWidth: 1920 - pos.nameX - 200,
+            ...dragStyle,
           }}
         >
           {showName && (
@@ -314,6 +377,8 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
           bottom-left coords. Stacks down/left from anchor with attributesRowGap between rows. */}
       {showAttributes && (
         <div
+          className={editable ? 'rc-drag' : undefined}
+          onMouseDown={editable ? (e) => startDrag(e, 'attributes') : undefined}
           style={{
             position: 'absolute',
             top: 1080 - pos.attributesY,
@@ -322,6 +387,7 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
             flexDirection: 'column',
             gap: pos.attributesRowGap,
             alignItems: 'flex-end',
+            ...dragStyle,
           }}
         >
           {ATTRIBUTE_KEYS.map((k) => (
@@ -356,6 +422,8 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
       {/* HP block — anchor: bottom-left of block at (hpX, hpY) bottom-left coords. */}
       {showHp && (
         <div
+          className={editable ? 'rc-drag' : undefined}
+          onMouseDown={editable ? (e) => startDrag(e, 'hp') : undefined}
           style={{
             position: 'absolute',
             bottom: pos.hpY,
@@ -363,6 +431,7 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
             display: 'flex',
             flexDirection: 'column',
             gap: 18,
+            ...dragStyle,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
@@ -413,12 +482,15 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
           streamerWidth defines the horizontal extent; text is centered inside the container. */}
       {showStreamer && (
         <div
+          className={editable ? 'rc-drag' : undefined}
+          onMouseDown={editable ? (e) => startDrag(e, 'streamer') : undefined}
           style={{
             position: 'absolute',
             bottom: pos.streamerY,
             left: pos.streamerX,
             width: pos.streamerWidth,
             textAlign: 'center',
+            ...dragStyle,
           }}
         >
           <span
