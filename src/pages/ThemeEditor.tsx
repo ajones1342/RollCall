@@ -364,10 +364,6 @@ export default function ThemeEditor() {
                 unit="px"
                 onChange={(v) => setPosition('attributesRowGap', v)}
               />
-              <AnchorRow
-                value={draft.positions.attributesAnchor}
-                onChange={(v) => setPosition('attributesAnchor', v)}
-              />
               <AlignRow
                 value={draft.positions.attributesAlign}
                 onChange={(v) => setPosition('attributesAlign', v)}
@@ -392,10 +388,6 @@ export default function ThemeEditor() {
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('hpY', v)}
-              />
-              <AnchorRow
-                value={draft.positions.hpAnchor}
-                onChange={(v) => setPosition('hpAnchor', v)}
               />
               <AlignRow
                 value={draft.positions.hpAlign}
@@ -430,10 +422,6 @@ export default function ThemeEditor() {
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('streamerWidth', v)}
-              />
-              <AnchorRow
-                value={draft.positions.streamerAnchor}
-                onChange={(v) => setPosition('streamerAnchor', v)}
               />
               <AlignRow
                 value={draft.positions.streamerAlign}
