@@ -351,6 +351,24 @@ export default function ThemeEditor() {
               unit="px"
               onChange={(v) => setPosition('streamerBottom', v)}
             />
+            <SliderRow
+              label="Streamer — left"
+              value={draft.positions.streamerLeft}
+              min={0}
+              max={1500}
+              step={2}
+              unit="px"
+              onChange={(v) => setPosition('streamerLeft', v)}
+            />
+            <SliderRow
+              label="Streamer — right"
+              value={draft.positions.streamerRight}
+              min={0}
+              max={1500}
+              step={2}
+              unit="px"
+              onChange={(v) => setPosition('streamerRight', v)}
+            />
           </Section>
 
           <Section title="Font Sizes">

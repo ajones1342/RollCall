@@ -88,6 +88,8 @@ export type Positions = {
   hpBottom: number;
   hpLeft: number;
   streamerBottom: number;
+  streamerLeft: number;
+  streamerRight: number;
 };
 
 export type Theme = {
@@ -116,6 +118,8 @@ export function defaultPositions(edgePadding: number): Positions {
     hpBottom: edgePadding,
     hpLeft: edgePadding,
     streamerBottom: edgePadding + 20,
+    streamerLeft: 0,
+    streamerRight: 0,
   };
 }
 

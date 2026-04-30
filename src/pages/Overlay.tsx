@@ -409,22 +409,30 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
         </div>
       )}
 
-      {/* Bottom-center: streamer name */}
+      {/* Bottom-center: streamer name. left + right span the container; text is
+          centered inside it, so symmetric values keep the name at canvas
+          center while asymmetric values shift it. */}
       {showStreamer && (
         <div
           style={{
-            ...fill,
             position: 'absolute',
             bottom: pos.streamerBottom,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontSize: sz.streamerName,
-            letterSpacing: '0.12em',
-            opacity: 0.92,
-            whiteSpace: 'nowrap',
+            left: pos.streamerLeft,
+            right: pos.streamerRight,
+            textAlign: 'center',
           }}
         >
-          {c.twitch_display_name}
+          <span
+            style={{
+              ...fill,
+              fontSize: sz.streamerName,
+              letterSpacing: '0.12em',
+              opacity: 0.92,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {c.twitch_display_name}
+          </span>
         </div>
       )}
     </div>
