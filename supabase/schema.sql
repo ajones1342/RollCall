@@ -29,6 +29,7 @@ create table if not exists public.characters (
   wisdom int not null default 10,
   charisma int not null default 10,
   display_order int not null default 0,
+  hidden_fields text[] not null default '{}',
   twitch_display_name text,
   twitch_avatar_url text,
   created_at timestamptz not null default now(),
@@ -110,6 +111,23 @@ create policy characters_update_self
   to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
+
+drop policy if exists characters_update_gm on public.characters;
+create policy characters_update_gm
+  on public.characters for update
+  to authenticated
+  using (
+    exists (
+      select 1 from public.campaigns c
+      where c.id = campaign_id and c.owner_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.campaigns c
+      where c.id = campaign_id and c.owner_id = auth.uid()
+    )
+  );
 
 drop policy if exists characters_delete_self_or_owner on public.characters;
 create policy characters_delete_self_or_owner
