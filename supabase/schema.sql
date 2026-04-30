@@ -10,6 +10,7 @@ create table if not exists public.campaigns (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
+  theme jsonb not null default '{}',
   created_at timestamptz not null default now()
 );
 
@@ -159,5 +160,14 @@ begin
    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'characters';
   if not found then
     execute 'alter publication supabase_realtime add table public.characters';
+  end if;
+end$$;
+
+do $$
+begin
+  perform 1 from pg_publication_tables
+   where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'campaigns';
+  if not found then
+    execute 'alter publication supabase_realtime add table public.campaigns';
   end if;
 end$$;
