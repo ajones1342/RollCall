@@ -3,8 +3,18 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ATTRIBUTE_KEYS, ATTRIBUTE_LABELS, type Character } from '../lib/types';
 
-const TEXT_SHADOW =
-  '0 4px 12px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9), 0 2px 0 rgba(0,0,0,0.9)';
+const GRADIENT_TEXT: React.CSSProperties = {
+  background: 'linear-gradient(85deg, #02fdfc, #c22cff)',
+  WebkitBackgroundClip: 'text',
+  backgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  color: 'transparent',
+};
+
+// drop-shadow (not text-shadow) renders against the actual painted text,
+// which is required when the fill is transparent (gradient text).
+const CARD_FILTER =
+  'drop-shadow(0 4px 8px rgba(0,0,0,0.9)) drop-shadow(0 0 4px rgba(0,0,0,0.85))';
 
 export default function Overlay() {
   const { campaignId, characterId } = useParams<{
@@ -94,8 +104,6 @@ function ScaleToFit({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const update = () => {
-      // For nested containers, ScaleToFit sizes to its parent.
-      // In overlay mode the parent is the viewport.
       setSize({ w: window.innerWidth, h: window.innerHeight });
     };
     update();
@@ -103,8 +111,6 @@ function ScaleToFit({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  // When rendered inside an aspect-locked parent (multi-mode preview), use
-  // ResizeObserver against the wrapper.
   return (
     <ScaleToFitInner parentSize={size}>{children}</ScaleToFitInner>
   );
@@ -170,15 +176,15 @@ function CharacterCard1080({ c }: { c: Character }) {
         position: 'relative',
         width: 1920,
         height: 1080,
-        color: '#f5f5f4',
         fontFamily: "'Cinzel', serif",
-        textShadow: TEXT_SHADOW,
+        filter: CARD_FILTER,
       }}
     >
       {/* Top-left: name + race/class */}
       <div style={{ position: 'absolute', top: 80, left: 100, maxWidth: 1100 }}>
         <div
           style={{
+            ...GRADIENT_TEXT,
             fontSize: 96,
             fontWeight: 700,
             lineHeight: 1,
@@ -190,6 +196,7 @@ function CharacterCard1080({ c }: { c: Character }) {
         {subtitle && (
           <div
             style={{
+              ...GRADIENT_TEXT,
               fontSize: 48,
               marginTop: 18,
               letterSpacing: '0.1em',
@@ -225,6 +232,7 @@ function CharacterCard1080({ c }: { c: Character }) {
           >
             <span
               style={{
+                ...GRADIENT_TEXT,
                 fontSize: 44,
                 opacity: 0.85,
                 letterSpacing: '0.12em',
@@ -234,6 +242,7 @@ function CharacterCard1080({ c }: { c: Character }) {
             </span>
             <span
               style={{
+                ...GRADIENT_TEXT,
                 fontSize: 80,
                 fontWeight: 700,
                 minWidth: 130,
@@ -260,6 +269,7 @@ function CharacterCard1080({ c }: { c: Character }) {
       >
         <span
           style={{
+            ...GRADIENT_TEXT,
             fontSize: 44,
             opacity: 0.85,
             letterSpacing: '0.12em',
@@ -269,6 +279,7 @@ function CharacterCard1080({ c }: { c: Character }) {
         </span>
         <span
           style={{
+            ...GRADIENT_TEXT,
             fontSize: 84,
             fontWeight: 700,
             letterSpacing: '0.04em',
@@ -283,6 +294,7 @@ function CharacterCard1080({ c }: { c: Character }) {
       {c.twitch_display_name && (
         <div
           style={{
+            ...GRADIENT_TEXT,
             position: 'absolute',
             bottom: 100,
             left: '50%',
