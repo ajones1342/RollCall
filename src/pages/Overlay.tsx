@@ -325,7 +325,7 @@ export function CharacterCard1080({
             position: 'absolute',
             top: 1080 - pos.nameY,
             left: pos.nameX,
-            maxWidth: 1920 - pos.nameX - 200,
+            whiteSpace: 'nowrap',
             ...dragStyle,
           }}
         >
