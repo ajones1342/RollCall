@@ -79,17 +79,29 @@ export const TEXTURE_OPTIONS: { value: TexturePreset; label: string }[] = [
   { value: 'crosshatch', label: 'Crosshatch' },
 ];
 
+// Element positions in a single bottom-left coordinate system.
+// (0, 0) = bottom-left of the 1920x1080 canvas. (1920, 1080) = top-right.
+// Each element has an anchor corner (the corner of itself that (x, y) refers to);
+// the anchor is chosen to match the element's natural visual role:
+//
+//   Name       — anchor: top-left of name block (extends down/right from anchor)
+//   Attributes — anchor: top-right of column   (extends down/left from anchor)
+//   HP         — anchor: bottom-left of block  (extends up/right from anchor)
+//   Streamer   — anchor: bottom-left of container, with explicit width
+//
+// User-facing sliders show "Horizontal" and "Vertical" for every element with
+// uniform direction: increase X = move right, increase Y = move up.
 export type Positions = {
-  nameTop: number;
-  nameLeft: number;
-  attributesTop: number;
-  attributesRight: number;
-  attributesBottom: number;
-  hpBottom: number;
-  hpLeft: number;
-  streamerBottom: number;
-  streamerLeft: number;
-  streamerRight: number;
+  nameX: number;
+  nameY: number;
+  attributesX: number;
+  attributesY: number;
+  attributesRowGap: number;
+  hpX: number;
+  hpY: number;
+  streamerX: number;
+  streamerY: number;
+  streamerWidth: number;
 };
 
 export type Theme = {
@@ -108,18 +120,70 @@ export type Theme = {
   fontSizes: FontSizes;
 };
 
-export function defaultPositions(edgePadding: number): Positions {
+export function defaultPositions(edgePadding: number = 80): Positions {
   return {
-    nameTop: edgePadding,
-    nameLeft: edgePadding,
-    attributesTop: edgePadding,
-    attributesRight: edgePadding,
-    attributesBottom: edgePadding,
-    hpBottom: edgePadding,
-    hpLeft: edgePadding,
-    streamerBottom: edgePadding + 20,
-    streamerLeft: 0,
-    streamerRight: 0,
+    nameX: edgePadding,
+    nameY: 1080 - edgePadding,
+    attributesX: 1920 - edgePadding,
+    attributesY: 1080 - edgePadding,
+    attributesRowGap: 88,
+    hpX: edgePadding,
+    hpY: edgePadding,
+    streamerX: 0,
+    streamerY: edgePadding + 20,
+    streamerWidth: 1920,
+  };
+}
+
+// Convert a stored Positions blob — possibly in the old anchored form
+// (top/left/right/bottom) — to the new bottom-left {x, y} form.
+function migratePositions(stored: unknown, edgePadding: number): Positions {
+  const def = defaultPositions(edgePadding);
+  if (!stored || typeof stored !== 'object') return def;
+  const s = stored as Record<string, unknown>;
+  const num = (k: string): number | undefined =>
+    typeof s[k] === 'number' ? (s[k] as number) : undefined;
+
+  // If new keys are present, treat as the new shape; fill in any missing.
+  if (
+    num('nameX') !== undefined ||
+    num('hpX') !== undefined ||
+    num('attributesX') !== undefined
+  ) {
+    return {
+      nameX: num('nameX') ?? def.nameX,
+      nameY: num('nameY') ?? def.nameY,
+      attributesX: num('attributesX') ?? def.attributesX,
+      attributesY: num('attributesY') ?? def.attributesY,
+      attributesRowGap: num('attributesRowGap') ?? def.attributesRowGap,
+      hpX: num('hpX') ?? def.hpX,
+      hpY: num('hpY') ?? def.hpY,
+      streamerX: num('streamerX') ?? def.streamerX,
+      streamerY: num('streamerY') ?? def.streamerY,
+      streamerWidth: num('streamerWidth') ?? def.streamerWidth,
+    };
+  }
+
+  // Otherwise migrate from old top/left/right/bottom semantics.
+  const oldStreamerLeft = num('streamerLeft') ?? 0;
+  const oldStreamerRight = num('streamerRight') ?? 0;
+  return {
+    nameX: num('nameLeft') ?? def.nameX,
+    nameY: num('nameTop') !== undefined ? 1080 - (num('nameTop') as number) : def.nameY,
+    attributesX:
+      num('attributesRight') !== undefined
+        ? 1920 - (num('attributesRight') as number)
+        : def.attributesX,
+    attributesY:
+      num('attributesTop') !== undefined
+        ? 1080 - (num('attributesTop') as number)
+        : def.attributesY,
+    attributesRowGap: def.attributesRowGap,
+    hpX: num('hpLeft') ?? def.hpX,
+    hpY: num('hpBottom') ?? def.hpY,
+    streamerX: oldStreamerLeft,
+    streamerY: num('streamerBottom') ?? def.streamerY,
+    streamerWidth: 1920 - oldStreamerLeft - oldStreamerRight,
   };
 }
 
@@ -153,9 +217,6 @@ export const DEFAULT_THEME: Theme = {
 export function mergeTheme(partial: Partial<Theme> | null | undefined): Theme {
   if (!partial) return DEFAULT_THEME;
   const edgePadding = partial.edgePadding ?? DEFAULT_THEME.edgePadding;
-  // Backward compat: if a stored theme predates the positions field, derive
-  // positions from edgePadding so the old visual layout is preserved.
-  const fallbackPositions = defaultPositions(edgePadding);
   return {
     fontFamily: partial.fontFamily ?? DEFAULT_THEME.fontFamily,
     fillMode: partial.fillMode ?? DEFAULT_THEME.fillMode,
@@ -168,7 +229,7 @@ export function mergeTheme(partial: Partial<Theme> | null | undefined): Theme {
     textureAccent: partial.textureAccent ?? DEFAULT_THEME.textureAccent,
     shadowStrength: partial.shadowStrength ?? DEFAULT_THEME.shadowStrength,
     edgePadding,
-    positions: { ...fallbackPositions, ...(partial.positions ?? {}) },
+    positions: migratePositions(partial.positions, edgePadding),
     fontSizes: { ...DEFAULT_THEME.fontSizes, ...(partial.fontSizes ?? {}) },
   };
 }

@@ -256,14 +256,14 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
         filter: cardFilter(theme.shadowStrength),
       }}
     >
-      {/* Top-left: name + race/class + conditions */}
+      {/* Name block — anchor: top-left of block at (nameX, nameY) bottom-left coords. */}
       {showTopLeft && (
         <div
           style={{
             position: 'absolute',
-            top: pos.nameTop,
-            left: pos.nameLeft,
-            maxWidth: 1920 - pos.nameLeft - 200,
+            top: 1080 - pos.nameY,
+            left: pos.nameX,
+            maxWidth: 1920 - pos.nameX - 200,
           }}
         >
           {showName && (
@@ -310,17 +310,17 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
         </div>
       )}
 
-      {/* Right edge: attributes spread top-to-bottom */}
+      {/* Attributes column — anchor: top-right of column at (attributesX, attributesY)
+          bottom-left coords. Stacks down/left from anchor with attributesRowGap between rows. */}
       {showAttributes && (
         <div
           style={{
             position: 'absolute',
-            top: pos.attributesTop,
-            bottom: pos.attributesBottom,
-            right: pos.attributesRight,
+            top: 1080 - pos.attributesY,
+            right: 1920 - pos.attributesX,
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-between',
+            gap: pos.attributesRowGap,
             alignItems: 'flex-end',
           }}
         >
@@ -353,13 +353,13 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
         </div>
       )}
 
-      {/* Bottom-left: HP, optional temp HP, optional death saves */}
+      {/* HP block — anchor: bottom-left of block at (hpX, hpY) bottom-left coords. */}
       {showHp && (
         <div
           style={{
             position: 'absolute',
-            bottom: pos.hpBottom,
-            left: pos.hpLeft,
+            bottom: pos.hpY,
+            left: pos.hpX,
             display: 'flex',
             flexDirection: 'column',
             gap: 18,
@@ -409,16 +409,15 @@ export function CharacterCard1080({ c, theme }: { c: Character; theme: Theme }) 
         </div>
       )}
 
-      {/* Bottom-center: streamer name. left + right span the container; text is
-          centered inside it, so symmetric values keep the name at canvas
-          center while asymmetric values shift it. */}
+      {/* Streamer container — anchor: bottom-left at (streamerX, streamerY) bottom-left coords.
+          streamerWidth defines the horizontal extent; text is centered inside the container. */}
       {showStreamer && (
         <div
           style={{
             position: 'absolute',
-            bottom: pos.streamerBottom,
-            left: pos.streamerLeft,
-            right: pos.streamerRight,
+            bottom: pos.streamerY,
+            left: pos.streamerX,
+            width: pos.streamerWidth,
             textAlign: 'center',
           }}
         >

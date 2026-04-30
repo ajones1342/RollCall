@@ -275,100 +275,113 @@ export default function ThemeEditor() {
           </Section>
 
           <Section title="Element Positions">
-            <p className="text-xs text-stone-500 mb-2">
-              Distance from each element's anchor edge, in px. Increase to nudge
-              the element inward; decrease to push it toward the corner.
+            <p className="text-xs text-stone-500 mb-3">
+              Bottom-left of the canvas is (0, 0). Horizontal increases rightward;
+              Vertical increases upward. Each element's anchor corner is whichever
+              edge it visually clings to.
             </p>
-            <SliderRow
-              label="Name — top"
-              value={draft.positions.nameTop}
-              min={0}
-              max={600}
-              step={2}
-              unit="px"
-              onChange={(v) => setPosition('nameTop', v)}
-            />
-            <SliderRow
-              label="Name — left"
-              value={draft.positions.nameLeft}
-              min={0}
-              max={800}
-              step={2}
-              unit="px"
-              onChange={(v) => setPosition('nameLeft', v)}
-            />
-            <SliderRow
-              label="Attributes — top"
-              value={draft.positions.attributesTop}
-              min={0}
-              max={400}
-              step={2}
-              unit="px"
-              onChange={(v) => setPosition('attributesTop', v)}
-            />
-            <SliderRow
-              label="Attributes — right"
-              value={draft.positions.attributesRight}
-              min={0}
-              max={400}
-              step={2}
-              unit="px"
-              onChange={(v) => setPosition('attributesRight', v)}
-            />
-            <SliderRow
-              label="Attributes — bottom"
-              value={draft.positions.attributesBottom}
-              min={0}
-              max={400}
-              step={2}
-              unit="px"
-              onChange={(v) => setPosition('attributesBottom', v)}
-            />
-            <SliderRow
-              label="HP — bottom"
-              value={draft.positions.hpBottom}
-              min={0}
-              max={500}
-              step={2}
-              unit="px"
-              onChange={(v) => setPosition('hpBottom', v)}
-            />
-            <SliderRow
-              label="HP — left"
-              value={draft.positions.hpLeft}
-              min={0}
-              max={800}
-              step={2}
-              unit="px"
-              onChange={(v) => setPosition('hpLeft', v)}
-            />
-            <SliderRow
-              label="Streamer — bottom"
-              value={draft.positions.streamerBottom}
-              min={0}
-              max={500}
-              step={2}
-              unit="px"
-              onChange={(v) => setPosition('streamerBottom', v)}
-            />
-            <SliderRow
-              label="Streamer — left"
-              value={draft.positions.streamerLeft}
-              min={0}
-              max={1500}
-              step={2}
-              unit="px"
-              onChange={(v) => setPosition('streamerLeft', v)}
-            />
-            <SliderRow
-              label="Streamer — right"
-              value={draft.positions.streamerRight}
-              min={0}
-              max={1500}
-              step={2}
-              unit="px"
-              onChange={(v) => setPosition('streamerRight', v)}
-            />
+
+            <PositionGroup label="Name">
+              <SliderRow
+                label="Horizontal"
+                value={draft.positions.nameX}
+                min={0}
+                max={1920}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('nameX', v)}
+              />
+              <SliderRow
+                label="Vertical"
+                value={draft.positions.nameY}
+                min={0}
+                max={1080}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('nameY', v)}
+              />
+            </PositionGroup>
+
+            <PositionGroup label="Attributes">
+              <SliderRow
+                label="Horizontal"
+                value={draft.positions.attributesX}
+                min={0}
+                max={1920}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('attributesX', v)}
+              />
+              <SliderRow
+                label="Vertical"
+                value={draft.positions.attributesY}
+                min={0}
+                max={1080}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('attributesY', v)}
+              />
+              <SliderRow
+                label="Row gap"
+                value={draft.positions.attributesRowGap}
+                min={0}
+                max={200}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('attributesRowGap', v)}
+              />
+            </PositionGroup>
+
+            <PositionGroup label="HP">
+              <SliderRow
+                label="Horizontal"
+                value={draft.positions.hpX}
+                min={0}
+                max={1920}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('hpX', v)}
+              />
+              <SliderRow
+                label="Vertical"
+                value={draft.positions.hpY}
+                min={0}
+                max={1080}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('hpY', v)}
+              />
+            </PositionGroup>
+
+            <PositionGroup label="Streamer">
+              <SliderRow
+                label="Horizontal"
+                value={draft.positions.streamerX}
+                min={0}
+                max={1920}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('streamerX', v)}
+              />
+              <SliderRow
+                label="Vertical"
+                value={draft.positions.streamerY}
+                min={0}
+                max={1080}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('streamerY', v)}
+              />
+              <SliderRow
+                label="Width"
+                value={draft.positions.streamerWidth}
+                min={100}
+                max={1920}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('streamerWidth', v)}
+              />
+            </PositionGroup>
           </Section>
 
           <Section title="Font Sizes">
@@ -500,6 +513,17 @@ function Section(props: { title: string; children: React.ReactNode }) {
         {props.children}
       </div>
     </section>
+  );
+}
+
+function PositionGroup(props: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="border-t border-stone-700 first:border-t-0 pt-3 first:pt-0 mt-3 first:mt-0">
+      <div className="text-sm uppercase tracking-wide text-stone-400 mb-2">
+        {props.label}
+      </div>
+      <div className="space-y-1">{props.children}</div>
+    </div>
   );
 }
 
