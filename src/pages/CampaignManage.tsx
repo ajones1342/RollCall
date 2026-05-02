@@ -36,6 +36,8 @@ export default function CampaignManage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
+  const [vttToken, setVttToken] = useState<string | null>(null);
+  const [tokenVisible, setTokenVisible] = useState(false);
 
   // Require an 8px drag distance before activating — prevents click-to-edit
   // from accidentally triggering a drag.
@@ -55,6 +57,14 @@ export default function CampaignManage() {
       .eq('id', campaignId)
       .single()
       .then(({ data }) => setCampaign((data as Campaign) ?? null));
+
+    // Token lookup is gated by RLS to the campaign owner only.
+    supabase
+      .from('campaign_tokens')
+      .select('token')
+      .eq('campaign_id', campaignId)
+      .maybeSingle()
+      .then(({ data }) => setVttToken((data as { token: string } | null)?.token ?? null));
 
     const refresh = () =>
       supabase
@@ -124,6 +134,30 @@ export default function CampaignManage() {
     );
   };
 
+  const regenerateToken = async () => {
+    if (!campaign) return;
+    if (
+      !confirm(
+        'Regenerate the VTT token? Any module using the old token will stop working until you update it.'
+      )
+    )
+      return;
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    const newToken = Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    const { error } = await supabase
+      .from('campaign_tokens')
+      .update({ token: newToken })
+      .eq('campaign_id', campaign.id);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    setVttToken(newToken);
+  };
+
   const setSetting = async <K extends keyof NonNullable<Campaign['settings']>>(
     key: K,
     value: NonNullable<Campaign['settings']>[K]
@@ -174,6 +208,63 @@ export default function CampaignManage() {
           onCopy={() => copy('overlay', overlayUrl)}
           hint="Useful for previewing layouts. For OBS, use the per-character URLs below — one Browser Source per player."
         />
+      </section>
+
+      <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
+        <div className="flex justify-between items-center mb-2 gap-2 flex-wrap">
+          <h2 className="text-xl">VTT Bridge</h2>
+          {vttToken && (
+            <div className="flex gap-1">
+              <button
+                onClick={() => setTokenVisible((v) => !v)}
+                className="text-xs px-3 py-1 bg-stone-700 hover:bg-stone-600 rounded"
+              >
+                {tokenVisible ? 'Hide token' : 'Show token'}
+              </button>
+              <button
+                onClick={regenerateToken}
+                className="text-xs px-3 py-1 bg-stone-700 hover:bg-red-700 rounded"
+              >
+                Regenerate
+              </button>
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-stone-500 mb-3">
+          Webhook for VTT bridge modules to push initiative and dice rolls in.
+          Module developers: see <code className="text-stone-300">docs/vtt-api.md</code> for the payload spec.
+        </p>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-wide text-stone-400 w-20">Endpoint</span>
+            <code className="text-xs text-stone-300 bg-stone-900 px-2 py-1 rounded flex-1 truncate">
+              {origin}/api/vtt/state
+            </code>
+            <button
+              onClick={() => copy('vtt-url', `${origin}/api/vtt/state`)}
+              className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded whitespace-nowrap"
+            >
+              {copied === 'vtt-url' ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-wide text-stone-400 w-20">Token</span>
+            <code className="text-xs text-stone-300 bg-stone-900 px-2 py-1 rounded flex-1 truncate font-mono">
+              {!vttToken
+                ? 'Loading…'
+                : tokenVisible
+                  ? vttToken
+                  : '•'.repeat(Math.min(vttToken.length, 48))}
+            </code>
+            <button
+              onClick={() => vttToken && copy('vtt-token', vttToken)}
+              disabled={!vttToken}
+              className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded whitespace-nowrap"
+            >
+              {copied === 'vtt-token' ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        </div>
       </section>
 
       <DiceRoller
