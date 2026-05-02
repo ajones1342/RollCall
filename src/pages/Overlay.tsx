@@ -14,6 +14,7 @@ import {
   type CampaignSettings,
   type Character,
   type CombatState,
+  type DiceRoll,
   type Theme,
 } from '../lib/types';
 
@@ -34,6 +35,7 @@ export default function Overlay() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
   const [combat, setCombat] = useState<CombatState | undefined>(undefined);
+  const [lastRoll, setLastRoll] = useState<DiceRoll | undefined>(undefined);
 
   useEffect(() => {
     document.body.classList.add('overlay-mode');
@@ -61,6 +63,7 @@ export default function Overlay() {
         | null;
       setTheme(mergeTheme(row?.theme));
       setCombat(row?.settings?.combat);
+      setLastRoll(row?.settings?.lastRoll);
     };
 
     refreshCharacters();
@@ -103,6 +106,7 @@ export default function Overlay() {
     return (
       <ScaleToFit>
         <CharacterCard1080 c={c} theme={theme} activeTurn={isActiveFor(c)} />
+        <DiceToast roll={lastRoll} />
       </ScaleToFit>
     );
   }
@@ -191,6 +195,7 @@ function ScaleToFitInner({
     >
       <div
         style={{
+          position: 'relative',
           width: 1920,
           height: 1080,
           transform: `scale(${scale})`,
@@ -199,6 +204,73 @@ function ScaleToFitInner({
         }}
       >
         {children}
+      </div>
+    </div>
+  );
+}
+
+function DiceToast({ roll }: { roll: DiceRoll | undefined }) {
+  const [visible, setVisible] = useState(false);
+  const seenAtRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!roll) return;
+    if (roll.rolledAt === seenAtRef.current) return;
+    seenAtRef.current = roll.rolledAt;
+    setVisible(true);
+    const t = window.setTimeout(() => setVisible(false), 4500);
+    return () => window.clearTimeout(t);
+  }, [roll?.rolledAt]);
+
+  if (!roll || !visible) return null;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 60,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: 'rgba(15, 23, 42, 0.92)',
+        border: '3px solid rgba(168, 85, 247, 0.9)',
+        borderRadius: 16,
+        padding: '20px 36px',
+        color: '#f5f5f4',
+        fontFamily: 'Cinzel, serif',
+        textAlign: 'center',
+        animation: 'rc-dice-fade 4.5s ease-out forwards',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        minWidth: 360,
+      }}
+    >
+      <style>{`
+        @keyframes rc-dice-fade {
+          0% { opacity: 0; transform: translate(-50%, -20px); }
+          8%, 85% { opacity: 1; transform: translate(-50%, 0); }
+          100% { opacity: 0; transform: translate(-50%, -10px); }
+        }
+      `}</style>
+      {roll.label && (
+        <div style={{ fontSize: 32, opacity: 0.85, letterSpacing: '0.06em' }}>
+          {roll.label}
+        </div>
+      )}
+      <div style={{ fontSize: 36, opacity: 0.7, letterSpacing: '0.08em' }}>
+        {roll.expression}
+      </div>
+      <div
+        style={{
+          fontSize: 88,
+          fontWeight: 700,
+          lineHeight: 1.1,
+          color: '#a855f7',
+          letterSpacing: '0.04em',
+        }}
+      >
+        {roll.total}
+      </div>
+      <div style={{ fontSize: 24, opacity: 0.7, fontFamily: 'monospace' }}>
+        {roll.detail}
       </div>
     </div>
   );

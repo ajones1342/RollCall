@@ -42,7 +42,43 @@ export type CampaignSettings = {
   // an external source (e.g. a Fantasy Grounds extension) can POST the full
   // CombatState and replace this field idempotently.
   combat?: CombatState;
+
+  // Most recent GM dice roll. Overlay watches this for changes (by
+  // rolledAt timestamp) and shows a brief toast.
+  lastRoll?: DiceRoll;
 };
+
+export type DiceRoll = {
+  expression: string; // e.g. "1d20+5"
+  total: number;
+  detail: string; // e.g. "[14] + 5 = 19"
+  rolledAt: string; // ISO timestamp; lets the overlay detect a fresh roll
+  label?: string; // optional context line, e.g. "Athletics" or character name
+};
+
+// Roll a dice expression of the form NdM, NdM+K, NdM-K (whitespace ok).
+// Returns null if the expression doesn't parse or limits are exceeded.
+export function rollDice(expression: string): DiceRoll | null {
+  const expr = expression.trim();
+  const m = expr.replace(/\s+/g, '').match(/^(\d*)d(\d+)([+-]\d+)?$/i);
+  if (!m) return null;
+  const count = parseInt(m[1] || '1', 10);
+  const sides = parseInt(m[2], 10);
+  const mod = m[3] ? parseInt(m[3], 10) : 0;
+  if (count <= 0 || count > 100 || sides <= 0 || sides > 1000) return null;
+  const rolls: number[] = [];
+  for (let i = 0; i < count; i++) rolls.push(1 + Math.floor(Math.random() * sides));
+  const sum = rolls.reduce((a, b) => a + b, 0);
+  const total = sum + mod;
+  const rollList = `[${rolls.join(', ')}]`;
+  const detail =
+    mod === 0
+      ? `${rollList} = ${total}`
+      : mod > 0
+        ? `${rollList} + ${mod} = ${total}`
+        : `${rollList} - ${-mod} = ${total}`;
+  return { expression: expr, total, detail, rolledAt: new Date().toISOString() };
+}
 
 // One combatant in the initiative order. PCs link to a characters row via
 // characterId so the overlay can highlight that character's card. NPCs/

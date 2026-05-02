@@ -70,7 +70,11 @@ export default function PlayerEdit() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [partyMembers, setPartyMembers] = useState<Character[]>([]);
   const [partyOpen, setPartyOpen] = useState(true);
+  const [gmNotes, setGmNotes] = useState<string>('');
+  const [gmNotesLoaded, setGmNotesLoaded] = useState(false);
+  const [gmNotesSaveState, setGmNotesSaveState] = useState<SaveState>('idle');
   const saveTimerRef = useRef<number | null>(null);
+  const gmNotesTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (loading || session) return;
@@ -223,6 +227,44 @@ export default function PlayerEdit() {
       death_save_failures: clampDeathSave(failures),
     }));
   };
+
+  // GM-only notes for the character being edited (separate table; RLS gates
+  // read+write to the campaign owner). Only loaded when we have a real
+  // characterId (GM mode).
+  useEffect(() => {
+    if (!session || !characterId || !character) return;
+    if (character.user_id === session.user.id) return; // not GM mode
+    setGmNotesLoaded(false);
+    supabase
+      .from('character_gm_notes')
+      .select('notes')
+      .eq('character_id', characterId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setGmNotes(((data as { notes?: string } | null)?.notes) ?? '');
+        setGmNotesLoaded(true);
+      });
+  }, [session, characterId, character]);
+
+  // GM notes auto-save: upsert into character_gm_notes 600ms after edits.
+  useEffect(() => {
+    if (!gmNotesLoaded || !characterId) return;
+    setGmNotesSaveState('pending');
+    if (gmNotesTimerRef.current) window.clearTimeout(gmNotesTimerRef.current);
+    gmNotesTimerRef.current = window.setTimeout(async () => {
+      setGmNotesSaveState('saving');
+      const { error } = await supabase
+        .from('character_gm_notes')
+        .upsert(
+          { character_id: characterId, notes: gmNotes },
+          { onConflict: 'character_id' }
+        );
+      setGmNotesSaveState(error ? 'error' : 'saved');
+    }, 600);
+    return () => {
+      if (gmNotesTimerRef.current) window.clearTimeout(gmNotesTimerRef.current);
+    };
+  }, [gmNotes, gmNotesLoaded, characterId]);
 
   if (loading || !character) return <div className="p-8">Loading…</div>;
 
@@ -401,6 +443,31 @@ export default function PlayerEdit() {
         rows={6}
         className="input resize-y mb-8"
       />
+
+      {editingAsGM && (
+        <>
+          <h2 className="text-xl mb-2 text-purple-300">GM Notes</h2>
+          <p className="text-sm text-stone-500 mb-2">
+            Private to you. The player cannot see this; it's stored in a
+            separate table with stricter access.
+          </p>
+          <textarea
+            value={gmNotes}
+            onChange={(e) => setGmNotes(e.target.value)}
+            rows={6}
+            placeholder={gmNotesLoaded ? '' : 'Loading…'}
+            disabled={!gmNotesLoaded}
+            className="input resize-y mb-2"
+          />
+          <div className="text-xs mb-8">
+            <SaveIndicator
+              state={gmNotesSaveState}
+              dirty={false}
+              error={null}
+            />
+          </div>
+        </>
+      )}
 
       <h2 className="text-xl mb-2">Show on Overlay</h2>
       <p className="text-sm text-stone-500 mb-3">

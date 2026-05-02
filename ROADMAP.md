@@ -63,9 +63,9 @@ Bigger lifts but high payoff.
 | Feature | Notes |
 |---|---|
 | Initiative tracker | Manual GM panel ships first (PCs + NPC/monster rows, init values, next/prev turn, round counter, active highlight on overlay + party panel). Schema is webhook-friendly so a future VTT-bridge module (Fantasy Grounds, Foundry, Roll20) can populate it via POST. |
-| Damage/heal calculator | "deal 8 to Aragorn, 4 to Frodo" parser. |
-| Private GM notes | Per-character, GM-only. |
-| Dice roller | `1d20+5` field that emits result to overlay briefly. |
+| ~~Damage/heal calculator~~ | Shipped as inline HP +/- buttons (−5/−1/+1/+5) on each row of the GM party list. Free-form parser punted. |
+| ~~Private GM notes~~ | Shipped — per-character, separate `character_gm_notes` table with strict RLS (only the campaign owner can read or write), shown only in GM-edit mode. |
+| ~~Dice roller~~ | Shipped — GM types `NdM±K`, optional label, broadcasts a fading toast to all overlays in the campaign via `campaigns.settings.lastRoll`. |
 
 ## Tier 6 — Packaging it for other streamers
 

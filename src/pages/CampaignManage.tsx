@@ -20,11 +20,13 @@ import { useSession } from '../hooks/useSession';
 import {
   advanceTurn,
   previousTurn,
+  rollDice,
   sortByInitiative,
   type Campaign,
   type Character,
   type CombatState,
   type Combatant,
+  type DiceRoll,
 } from '../lib/types';
 
 export default function CampaignManage() {
@@ -95,6 +97,18 @@ export default function CampaignManage() {
     if (error) alert(error.message);
   };
 
+  const bumpHp = async (id: string, delta: number, current: number) => {
+    const next = Math.max(0, current + delta);
+    setCharacters((cs) =>
+      cs.map((c) => (c.id === id ? { ...c, current_hp: next } : c))
+    );
+    const { error } = await supabase
+      .from('characters')
+      .update({ current_hp: next })
+      .eq('id', id);
+    if (error) alert(error.message);
+  };
+
   const handleDragEnd = async (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
@@ -162,6 +176,11 @@ export default function CampaignManage() {
         />
       </section>
 
+      <DiceRoller
+        lastRoll={campaign.settings?.lastRoll}
+        onRoll={(roll) => setSetting('lastRoll', roll)}
+      />
+
       <InitiativeTracker
         combat={campaign.settings?.combat}
         characters={characters}
@@ -219,6 +238,7 @@ export default function CampaignManage() {
                     copiedKey={copied}
                     onCopy={copy}
                     onRemove={removeCharacter}
+                    onBumpHp={bumpHp}
                   />
                 ))}
               </ul>
@@ -237,6 +257,7 @@ function SortableCharacterRow(props: {
   copiedKey: string | null;
   onCopy: (key: string, text: string) => void;
   onRemove: (id: string) => void;
+  onBumpHp: (id: string, delta: number, current: number) => void;
 }) {
   const ch = props.character;
   const charOverlayUrl = `${props.origin}/overlay/${props.campaignId}/${ch.id}`;
@@ -270,12 +291,41 @@ function SortableCharacterRow(props: {
         <div className="flex-1 min-w-0">
           <div className="text-xl">{ch.name || '(unnamed)'}</div>
           <div className="text-sm text-stone-400">
-            {ch.race || '—'} {ch.class || '—'} · HP {ch.current_hp}/{ch.max_hp}
+            {ch.race || '—'} {ch.class || '—'}
             {ch.twitch_display_name && (
               <span className="ml-2 text-purple-400">
                 @{ch.twitch_display_name}
               </span>
             )}
+          </div>
+          <div className="mt-2 flex items-center gap-1 flex-wrap">
+            <span className="text-xs uppercase tracking-wide text-stone-500 mr-1">
+              HP {ch.current_hp}/{ch.max_hp}
+            </span>
+            <button
+              onClick={() => props.onBumpHp(ch.id, -5, ch.current_hp)}
+              className="text-xs px-2 py-0.5 bg-stone-900 hover:bg-stone-700 border border-stone-600 rounded"
+            >
+              −5
+            </button>
+            <button
+              onClick={() => props.onBumpHp(ch.id, -1, ch.current_hp)}
+              className="text-xs px-2 py-0.5 bg-stone-900 hover:bg-stone-700 border border-stone-600 rounded"
+            >
+              −1
+            </button>
+            <button
+              onClick={() => props.onBumpHp(ch.id, +1, ch.current_hp)}
+              className="text-xs px-2 py-0.5 bg-stone-900 hover:bg-stone-700 border border-stone-600 rounded"
+            >
+              +1
+            </button>
+            <button
+              onClick={() => props.onBumpHp(ch.id, +5, ch.current_hp)}
+              className="text-xs px-2 py-0.5 bg-stone-900 hover:bg-stone-700 border border-stone-600 rounded"
+            >
+              +5
+            </button>
           </div>
           <div className="mt-2 flex items-center gap-2">
             <code className="text-xs text-stone-300 bg-stone-900 px-2 py-1 rounded truncate flex-1">
@@ -305,6 +355,68 @@ function SortableCharacterRow(props: {
         </div>
       </div>
     </li>
+  );
+}
+
+function DiceRoller(props: {
+  lastRoll: DiceRoll | undefined;
+  onRoll: (roll: DiceRoll) => void;
+}) {
+  const [expr, setExpr] = useState('1d20');
+  const [label, setLabel] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const roll = () => {
+    const result = rollDice(expr);
+    if (!result) {
+      setError('Try formats like 1d20, 2d6+3, 1d8-1');
+      return;
+    }
+    setError(null);
+    props.onRoll({ ...result, label: label.trim() || undefined });
+  };
+
+  return (
+    <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
+      <div className="flex justify-between items-center mb-3 gap-2 flex-wrap">
+        <h2 className="text-xl">Dice</h2>
+        {props.lastRoll && (
+          <span className="text-sm text-stone-400">
+            Last:{' '}
+            <span className="text-stone-200">
+              {props.lastRoll.label && `${props.lastRoll.label} — `}
+              {props.lastRoll.expression} → <strong>{props.lastRoll.total}</strong>
+            </span>
+          </span>
+        )}
+      </div>
+      <div className="flex gap-1 flex-wrap items-center">
+        <input
+          value={expr}
+          onChange={(e) => setExpr(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && roll()}
+          placeholder="1d20+5"
+          className="bg-stone-900 px-2 py-1 rounded border border-stone-600 text-sm w-28 font-mono"
+        />
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && roll()}
+          placeholder="Label (optional)"
+          className="bg-stone-900 px-2 py-1 rounded border border-stone-600 text-sm flex-1 min-w-[120px]"
+        />
+        <button
+          onClick={roll}
+          className="text-sm px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded"
+        >
+          Roll
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
+      <p className="text-xs text-stone-500 mt-2">
+        Result broadcasts to the OBS overlay as a brief toast. Format: NdM, NdM+K, NdM-K.
+      </p>
+    </section>
   );
 }
 
