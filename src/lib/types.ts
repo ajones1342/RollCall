@@ -240,7 +240,18 @@ export type Theme = {
   fontSizes: FontSizes;
   enableHpAnimations: boolean;
   showPortraits: boolean;
+  canvasWidth: number;
+  canvasHeight: number;
 };
+
+export const CANVAS_PRESETS: { label: string; width: number; height: number }[] = [
+  { label: '16:9', width: 1920, height: 1080 },
+  { label: '16:10', width: 1920, height: 1200 },
+  { label: '4:3', width: 1440, height: 1080 },
+  { label: '1:1', width: 1080, height: 1080 },
+  { label: '9:16', width: 1080, height: 1920 },
+  { label: '21:9', width: 2520, height: 1080 },
+];
 
 export function defaultPositions(edgePadding: number = 80): Positions {
   return {
@@ -359,6 +370,8 @@ export const DEFAULT_THEME: Theme = {
   solidColor: '#ffffff',
   enableHpAnimations: true,
   showPortraits: false,
+  canvasWidth: 1920,
+  canvasHeight: 1080,
   gradientFrom: '#02fdfc',
   gradientTo: '#c22cff',
   gradientAngle: 85,
@@ -401,6 +414,8 @@ export function mergeTheme(partial: Partial<Theme> | null | undefined): Theme {
     fontSizes: { ...DEFAULT_THEME.fontSizes, ...(partial.fontSizes ?? {}) },
     enableHpAnimations: partial.enableHpAnimations ?? DEFAULT_THEME.enableHpAnimations,
     showPortraits: partial.showPortraits ?? DEFAULT_THEME.showPortraits,
+    canvasWidth: partial.canvasWidth ?? DEFAULT_THEME.canvasWidth,
+    canvasHeight: partial.canvasHeight ?? DEFAULT_THEME.canvasHeight,
   };
 }
 
@@ -425,18 +440,25 @@ export function textureBackground(
 
 // Convert (x, y) in bottom-left coords + an anchor corner into the
 // corresponding CSS positioning props. The anchor corner of the element
-// will be placed at canvas position (x, y).
-export function anchorCss(anchor: Anchor, x: number, y: number): CSSProperties {
+// will be placed at canvas position (x, y) within a canvasWidth x
+// canvasHeight design space.
+export function anchorCss(
+  anchor: Anchor,
+  x: number,
+  y: number,
+  canvasWidth: number = 1920,
+  canvasHeight: number = 1080
+): CSSProperties {
   const css: CSSProperties = { position: 'absolute' };
   if (anchor === 'top-left' || anchor === 'top-right') {
-    css.top = 1080 - y;
+    css.top = canvasHeight - y;
   } else {
     css.bottom = y;
   }
   if (anchor === 'top-left' || anchor === 'bottom-left') {
     css.left = x;
   } else {
-    css.right = 1920 - x;
+    css.right = canvasWidth - x;
   }
   return css;
 }

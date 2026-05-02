@@ -104,7 +104,7 @@ export default function Overlay() {
     const c = characters[0];
     if (!c) return null;
     return (
-      <ScaleToFit>
+      <ScaleToFit canvasWidth={theme.canvasWidth} canvasHeight={theme.canvasHeight}>
         <CharacterCard1080 c={c} theme={theme} activeTurn={isActiveFor(c)} />
         <DiceToast roll={lastRoll} />
       </ScaleToFit>
@@ -126,14 +126,14 @@ export default function Overlay() {
           key={c.id}
           style={{
             width: '100%',
-            aspectRatio: '16 / 9',
+            aspectRatio: `${theme.canvasWidth} / ${theme.canvasHeight}`,
             position: 'relative',
             background: 'rgba(0,0,0,0.4)',
             borderRadius: 8,
             overflow: 'hidden',
           }}
         >
-          <ScaleToFit>
+          <ScaleToFit canvasWidth={theme.canvasWidth} canvasHeight={theme.canvasHeight}>
             <CharacterCard1080 c={c} theme={theme} activeTurn={isActiveFor(c)} />
           </ScaleToFit>
         </div>
@@ -142,8 +142,16 @@ export default function Overlay() {
   );
 }
 
-export function ScaleToFit({ children }: { children: React.ReactNode }) {
-  const [size, setSize] = useState({ w: 1920, h: 1080 });
+export function ScaleToFit({
+  children,
+  canvasWidth = 1920,
+  canvasHeight = 1080,
+}: {
+  children: React.ReactNode;
+  canvasWidth?: number;
+  canvasHeight?: number;
+}) {
+  const [size, setSize] = useState({ w: canvasWidth, h: canvasHeight });
 
   useEffect(() => {
     const update = () => {
@@ -154,15 +162,27 @@ export function ScaleToFit({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  return <ScaleToFitInner parentSize={size}>{children}</ScaleToFitInner>;
+  return (
+    <ScaleToFitInner
+      parentSize={size}
+      canvasWidth={canvasWidth}
+      canvasHeight={canvasHeight}
+    >
+      {children}
+    </ScaleToFitInner>
+  );
 }
 
 function ScaleToFitInner({
   children,
   parentSize,
+  canvasWidth,
+  canvasHeight,
 }: {
   children: React.ReactNode;
   parentSize: { w: number; h: number };
+  canvasWidth: number;
+  canvasHeight: number;
 }) {
   const [scale, setScale] = useState(1);
   const [wrapperEl, setWrapperEl] = useState<HTMLDivElement | null>(null);
@@ -171,15 +191,15 @@ function ScaleToFitInner({
     if (!wrapperEl) return;
     const update = () => {
       const rect = wrapperEl.getBoundingClientRect();
-      const sx = rect.width / 1920;
-      const sy = rect.height / 1080;
+      const sx = rect.width / canvasWidth;
+      const sy = rect.height / canvasHeight;
       setScale(Math.min(sx, sy));
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(wrapperEl);
     return () => ro.disconnect();
-  }, [wrapperEl, parentSize]);
+  }, [wrapperEl, parentSize, canvasWidth, canvasHeight]);
 
   return (
     <div
@@ -196,8 +216,8 @@ function ScaleToFitInner({
       <div
         style={{
           position: 'relative',
-          width: 1920,
-          height: 1080,
+          width: canvasWidth,
+          height: canvasHeight,
           transform: `scale(${scale})`,
           transformOrigin: 'center center',
           flex: '0 0 auto',
@@ -354,7 +374,7 @@ export function CharacterCard1080({
     e.preventDefault();
     e.stopPropagation();
     const rect = cardRef.current.getBoundingClientRect();
-    const scale = rect.width / 1920;
+    const scale = rect.width / theme.canvasWidth;
     const startX =
       element === 'name'
         ? pos.nameX
@@ -415,8 +435,8 @@ export function CharacterCard1080({
       ref={cardRef}
       style={{
         position: 'relative',
-        width: 1920,
-        height: 1080,
+        width: theme.canvasWidth,
+        height: theme.canvasHeight,
         fontFamily: `'${theme.fontFamily}', serif`,
         filter: cardFilter(theme.shadowStrength, Boolean(activeTurn)),
       }}
@@ -446,7 +466,7 @@ export function CharacterCard1080({
           className={editable ? 'rc-drag' : undefined}
           onMouseDown={editable ? (e) => startDrag(e, 'name') : undefined}
           style={{
-            ...anchorCss(pos.nameAnchor, pos.nameX, pos.nameY),
+            ...anchorCss(pos.nameAnchor, pos.nameX, pos.nameY, theme.canvasWidth, theme.canvasHeight),
             whiteSpace: 'nowrap',
             textAlign: pos.nameAlign,
             ...dragStyle,
@@ -503,7 +523,7 @@ export function CharacterCard1080({
           className={editable ? 'rc-drag' : undefined}
           onMouseDown={editable ? (e) => startDrag(e, 'attributes') : undefined}
           style={{
-            ...anchorCss(pos.attributesAnchor, pos.attributesX, pos.attributesY),
+            ...anchorCss(pos.attributesAnchor, pos.attributesX, pos.attributesY, theme.canvasWidth, theme.canvasHeight),
             display: 'flex',
             flexDirection: 'column',
             gap: pos.attributesRowGap,
@@ -547,7 +567,7 @@ export function CharacterCard1080({
           className={editable ? 'rc-drag' : undefined}
           onMouseDown={editable ? (e) => startDrag(e, 'hp') : undefined}
           style={{
-            ...anchorCss(pos.hpAnchor, pos.hpX, pos.hpY),
+            ...anchorCss(pos.hpAnchor, pos.hpX, pos.hpY, theme.canvasWidth, theme.canvasHeight),
             display: 'flex',
             flexDirection: 'column',
             gap: 18,
@@ -607,7 +627,7 @@ export function CharacterCard1080({
           className={editable ? 'rc-drag' : undefined}
           onMouseDown={editable ? (e) => startDrag(e, 'streamer') : undefined}
           style={{
-            ...anchorCss(pos.streamerAnchor, pos.streamerX, pos.streamerY),
+            ...anchorCss(pos.streamerAnchor, pos.streamerX, pos.streamerY, theme.canvasWidth, theme.canvasHeight),
             width: pos.streamerWidth,
             textAlign: pos.streamerAlign,
             ...dragStyle,
@@ -636,7 +656,7 @@ export function CharacterCard1080({
           onMouseDown={editable ? (e) => startDrag(e, 'portrait') : undefined}
           style={{
             position: 'absolute',
-            top: 1080 - pos.portraitY,
+            top: theme.canvasHeight - pos.portraitY,
             left: pos.portraitX,
             width: pos.portraitSize,
             height: pos.portraitSize,

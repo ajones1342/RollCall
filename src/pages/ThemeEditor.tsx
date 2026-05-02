@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../hooks/useSession';
 import {
+  CANVAS_PRESETS,
   DEFAULT_THEME,
   FONT_OPTIONS,
   TEXTURE_OPTIONS,
@@ -186,6 +187,59 @@ export default function ThemeEditor() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Form */}
         <div className="space-y-6">
+          <Section title="Canvas">
+            <p className="text-xs text-stone-500 mb-3">
+              The design size of the overlay. Sets the aspect ratio of the OBS
+              Browser Source you'll add. Default 1920×1080 fits most player
+              video tiles. Changing this on an existing theme may move
+              elements off-screen — you'll need to reposition.
+            </p>
+            <div className="flex flex-wrap gap-1 mb-3">
+              {CANVAS_PRESETS.map((p) => {
+                const active =
+                  draft.canvasWidth === p.width && draft.canvasHeight === p.height;
+                return (
+                  <button
+                    key={p.label}
+                    onClick={() => {
+                      setField('canvasWidth', p.width);
+                      setField('canvasHeight', p.height);
+                    }}
+                    className={
+                      'text-xs px-3 py-1 rounded border ' +
+                      (active
+                        ? 'bg-purple-700 border-purple-600 text-white'
+                        : 'bg-stone-900 border-stone-700 text-stone-300 hover:text-stone-100')
+                    }
+                  >
+                    {p.label}
+                    <span className="text-stone-500 ml-1.5">
+                      {p.width}×{p.height}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <SliderRow
+              label="Width"
+              value={draft.canvasWidth}
+              min={400}
+              max={3840}
+              step={2}
+              unit="px"
+              onChange={(v) => setField('canvasWidth', v)}
+            />
+            <SliderRow
+              label="Height"
+              value={draft.canvasHeight}
+              min={400}
+              max={3840}
+              step={2}
+              unit="px"
+              onChange={(v) => setField('canvasHeight', v)}
+            />
+          </Section>
+
           <Section title="Font">
             <select
               value={draft.fontFamily}
@@ -332,7 +386,7 @@ export default function ThemeEditor() {
                 label="Horizontal"
                 value={draft.positions.nameX}
                 min={0}
-                max={1920}
+                max={draft.canvasWidth}
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('nameX', v)}
@@ -341,7 +395,7 @@ export default function ThemeEditor() {
                 label="Vertical"
                 value={draft.positions.nameY}
                 min={0}
-                max={1080}
+                max={draft.canvasHeight}
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('nameY', v)}
@@ -361,7 +415,7 @@ export default function ThemeEditor() {
                 label="Horizontal"
                 value={draft.positions.attributesX}
                 min={0}
-                max={1920}
+                max={draft.canvasWidth}
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('attributesX', v)}
@@ -370,7 +424,7 @@ export default function ThemeEditor() {
                 label="Vertical"
                 value={draft.positions.attributesY}
                 min={0}
-                max={1080}
+                max={draft.canvasHeight}
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('attributesY', v)}
@@ -391,7 +445,7 @@ export default function ThemeEditor() {
                 label="Horizontal"
                 value={draft.positions.hpX}
                 min={0}
-                max={1920}
+                max={draft.canvasWidth}
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('hpX', v)}
@@ -400,7 +454,7 @@ export default function ThemeEditor() {
                 label="Vertical"
                 value={draft.positions.hpY}
                 min={0}
-                max={1080}
+                max={draft.canvasHeight}
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('hpY', v)}
@@ -412,7 +466,7 @@ export default function ThemeEditor() {
                 label="Horizontal"
                 value={draft.positions.streamerX}
                 min={0}
-                max={1920}
+                max={draft.canvasWidth}
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('streamerX', v)}
@@ -421,7 +475,7 @@ export default function ThemeEditor() {
                 label="Vertical"
                 value={draft.positions.streamerY}
                 min={0}
-                max={1080}
+                max={draft.canvasHeight}
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('streamerY', v)}
@@ -430,7 +484,7 @@ export default function ThemeEditor() {
                 label="Width"
                 value={draft.positions.streamerWidth}
                 min={100}
-                max={1920}
+                max={draft.canvasWidth}
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('streamerWidth', v)}
@@ -447,7 +501,7 @@ export default function ThemeEditor() {
                   label="Horizontal"
                   value={draft.positions.portraitX}
                   min={0}
-                  max={1920}
+                  max={draft.canvasWidth}
                   step={2}
                   unit="px"
                   onChange={(v) => setPosition('portraitX', v)}
@@ -456,7 +510,7 @@ export default function ThemeEditor() {
                   label="Vertical"
                   value={draft.positions.portraitY}
                   min={0}
-                  max={1080}
+                  max={draft.canvasHeight}
                   step={2}
                   unit="px"
                   onChange={(v) => setPosition('portraitY', v)}
@@ -580,9 +634,15 @@ export default function ThemeEditor() {
           </div>
           <div
             className="relative border border-stone-700 rounded overflow-hidden"
-            style={{ aspectRatio: '16 / 9', background: '#374151' }}
+            style={{
+              aspectRatio: `${draft.canvasWidth} / ${draft.canvasHeight}`,
+              background: '#374151',
+            }}
           >
-            <ScaleToFit>
+            <ScaleToFit
+              canvasWidth={draft.canvasWidth}
+              canvasHeight={draft.canvasHeight}
+            >
               <CharacterCard1080
                 c={SAMPLE_CHARACTER}
                 theme={draft}
