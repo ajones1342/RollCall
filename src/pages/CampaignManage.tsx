@@ -390,6 +390,8 @@ export default function CampaignManage() {
       <DiceRoller
         lastRoll={campaign.settings?.lastRoll}
         onRoll={(roll) => setSetting('lastRoll', roll)}
+        broadcasterLinked={Boolean(broadcaster)}
+        campaignId={campaign.id}
       />
 
       <InitiativeTracker
@@ -572,19 +574,70 @@ function SortableCharacterRow(props: {
 function DiceRoller(props: {
   lastRoll: DiceRoll | undefined;
   onRoll: (roll: DiceRoll) => void;
+  broadcasterLinked: boolean;
+  campaignId: string;
 }) {
+  const POST_TO_CHAT_KEY = `rollcall.postToChat.${props.campaignId}`;
   const [expr, setExpr] = useState('1d20');
   const [label, setLabel] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [postToChat, setPostToChat] = useState(() => {
+    try {
+      return localStorage.getItem(POST_TO_CHAT_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [posting, setPosting] = useState(false);
 
-  const roll = () => {
+  const setPostToChatPersisted = (v: boolean) => {
+    setPostToChat(v);
+    try {
+      if (v) localStorage.setItem(POST_TO_CHAT_KEY, '1');
+      else localStorage.removeItem(POST_TO_CHAT_KEY);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const roll = async () => {
     const result = rollDice(expr);
     if (!result) {
       setError('Try formats like 1d20, 2d6+3, 1d8-1');
       return;
     }
     setError(null);
-    props.onRoll({ ...result, label: label.trim() || undefined });
+    const labelTrim = label.trim() || undefined;
+    props.onRoll({ ...result, label: labelTrim });
+
+    if (postToChat && props.broadcasterLinked) {
+      setPosting(true);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) throw new Error('Not signed in');
+        const message = labelTrim
+          ? `🎲 ${labelTrim}: ${result.expression} = ${result.total} ${result.detail}`
+          : `🎲 ${result.expression} = ${result.total} ${result.detail}`;
+        const r = await fetch('/api/twitch/post-chat', {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${session.access_token}`,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({ campaignId: props.campaignId, message }),
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          setError(`Chat post failed: ${err.error ?? r.statusText}`);
+        }
+      } catch (e) {
+        setError(`Chat post failed: ${(e as Error).message}`);
+      } finally {
+        setPosting(false);
+      }
+    }
   };
 
   return (
@@ -618,11 +671,32 @@ function DiceRoller(props: {
         />
         <button
           onClick={roll}
-          className="text-sm px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded"
+          disabled={posting}
+          className="text-sm px-3 py-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded"
         >
-          Roll
+          {posting ? 'Posting…' : 'Roll'}
         </button>
       </div>
+      <label
+        className={
+          'flex items-center gap-2 mt-2 text-xs select-none ' +
+          (props.broadcasterLinked ? 'cursor-pointer' : 'cursor-not-allowed opacity-50')
+        }
+      >
+        <input
+          type="checkbox"
+          checked={postToChat && props.broadcasterLinked}
+          disabled={!props.broadcasterLinked}
+          onChange={(e) => setPostToChatPersisted(e.target.checked)}
+          className="w-3.5 h-3.5"
+        />
+        <span className="text-stone-300">
+          Also post to Twitch chat
+          {!props.broadcasterLinked && (
+            <span className="text-stone-500"> — connect a broadcast channel first</span>
+          )}
+        </span>
+      </label>
       {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
       <p className="text-xs text-stone-500 mt-2">
         Result broadcasts to the OBS overlay as a brief toast. Format: NdM, NdM+K, NdM-K.

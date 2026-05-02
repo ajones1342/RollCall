@@ -112,3 +112,80 @@ export async function userOwnsCampaign(
     .maybeSingle();
   return data?.owner_id === userId;
 }
+
+export type BroadcasterRow = {
+  campaign_id: string;
+  broadcaster_id: string;
+  broadcaster_login: string;
+  access_token: string;
+  refresh_token: string;
+  expires_at: string;
+};
+
+// Returns a valid access_token for the campaign's broadcaster, refreshing
+// via Twitch /oauth2/token if the stored token is near expiry. Updates the
+// DB row with new tokens on refresh.
+export async function getValidBroadcasterToken(
+  supabase: SupabaseClient,
+  campaignId: string
+): Promise<{ token: string; row: BroadcasterRow } | null> {
+  if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) return null;
+
+  const { data } = await supabase
+    .from('campaign_broadcasters')
+    .select(
+      'campaign_id, broadcaster_id, broadcaster_login, access_token, refresh_token, expires_at'
+    )
+    .eq('campaign_id', campaignId)
+    .maybeSingle();
+
+  if (!data) return null;
+  const row = data as BroadcasterRow;
+
+  // 60-second slack so we don't hand out a token that's about to expire.
+  const expiresAtMs = new Date(row.expires_at).getTime();
+  if (expiresAtMs > Date.now() + 60_000) {
+    return { token: row.access_token, row };
+  }
+
+  // Refresh.
+  const r = await fetch('https://id.twitch.tv/oauth2/token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: TWITCH_CLIENT_ID,
+      client_secret: TWITCH_CLIENT_SECRET,
+      grant_type: 'refresh_token',
+      refresh_token: row.refresh_token,
+    }),
+  });
+  if (!r.ok) {
+    // Refresh token is dead. Caller should treat as unlinked; the GM
+    // will need to reconnect.
+    return null;
+  }
+  const tokens = (await r.json()) as {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+  };
+  const newExpiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
+  await supabase
+    .from('campaign_broadcasters')
+    .update({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: newExpiresAt,
+    })
+    .eq('campaign_id', campaignId);
+
+  return {
+    token: tokens.access_token,
+    row: {
+      ...row,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: newExpiresAt,
+    },
+  };
+}
