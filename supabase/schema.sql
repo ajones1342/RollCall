@@ -150,6 +150,57 @@ create policy characters_delete_self_or_owner
   );
 
 -- ============================================================
+-- character_gm_notes: GM-only private notes about each character
+-- (Tier 5 DM workflow). Separate table because column-level RLS
+-- isn't a thing; this keeps the notes truly GM-only against direct
+-- API access.
+-- ============================================================
+
+create table if not exists public.character_gm_notes (
+  character_id uuid primary key references public.characters(id) on delete cascade,
+  notes text not null default '',
+  updated_at timestamptz not null default now()
+);
+
+create or replace function public.touch_gm_notes_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists gm_notes_touch on public.character_gm_notes;
+create trigger gm_notes_touch
+before update on public.character_gm_notes
+for each row execute function public.touch_gm_notes_updated_at();
+
+alter table public.character_gm_notes enable row level security;
+
+drop policy if exists gm_notes_owner_all on public.character_gm_notes;
+create policy gm_notes_owner_all
+  on public.character_gm_notes for all
+  to authenticated
+  using (
+    exists (
+      select 1 from public.characters ch
+      join public.campaigns cm on cm.id = ch.campaign_id
+      where ch.id = character_gm_notes.character_id
+        and cm.owner_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.characters ch
+      join public.campaigns cm on cm.id = ch.campaign_id
+      where ch.id = character_gm_notes.character_id
+        and cm.owner_id = auth.uid()
+    )
+  );
+
+-- ============================================================
 -- Realtime
 -- ============================================================
 
