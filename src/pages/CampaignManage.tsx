@@ -38,6 +38,13 @@ export default function CampaignManage() {
   const [copied, setCopied] = useState<string | null>(null);
   const [vttToken, setVttToken] = useState<string | null>(null);
   const [tokenVisible, setTokenVisible] = useState(false);
+  const [broadcaster, setBroadcaster] = useState<{
+    broadcaster_id: string;
+    broadcaster_login: string;
+    broadcaster_display_name: string;
+    scopes: string[];
+  } | null>(null);
+  const [broadcasterFlash, setBroadcasterFlash] = useState<string | null>(null);
 
   // Require an 8px drag distance before activating — prevents click-to-edit
   // from accidentally triggering a drag.
@@ -65,6 +72,25 @@ export default function CampaignManage() {
       .eq('campaign_id', campaignId)
       .maybeSingle()
       .then(({ data }) => setVttToken((data as { token: string } | null)?.token ?? null));
+
+    refreshBroadcaster();
+
+    // If we just came back from the Twitch OAuth callback, surface a brief
+    // success flash and strip the query param.
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('broadcaster') === 'linked') {
+      setBroadcasterFlash('Broadcast channel linked.');
+      window.setTimeout(() => setBroadcasterFlash(null), 3000);
+      url.searchParams.delete('broadcaster');
+      window.history.replaceState({}, '', url.toString());
+    } else if (url.searchParams.has('broadcaster_error')) {
+      setBroadcasterFlash(
+        'Broadcast channel link failed: ' + url.searchParams.get('broadcaster_error')
+      );
+      window.setTimeout(() => setBroadcasterFlash(null), 5000);
+      url.searchParams.delete('broadcaster_error');
+      window.history.replaceState({}, '', url.toString());
+    }
 
     const refresh = () =>
       supabase
@@ -132,6 +158,62 @@ export default function CampaignManage() {
         supabase.from('characters').update({ display_order: i }).eq('id', c.id)
       )
     );
+  };
+
+  const refreshBroadcaster = () => {
+    if (!campaignId) return;
+    supabase
+      .from('campaign_broadcasters')
+      .select('broadcaster_id, broadcaster_login, broadcaster_display_name, scopes')
+      .eq('campaign_id', campaignId)
+      .maybeSingle()
+      .then(({ data }) => setBroadcaster(data as typeof broadcaster));
+  };
+
+  const connectBroadcaster = async () => {
+    if (!campaign) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return;
+    const r = await fetch('/api/twitch/sign-link', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${session.access_token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ campaignId: campaign.id }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      alert(`Failed to start broadcaster link: ${err.error ?? r.statusText}`);
+      return;
+    }
+    const { authorizeUrl } = (await r.json()) as { authorizeUrl: string };
+    window.location.href = authorizeUrl;
+  };
+
+  const disconnectBroadcaster = async () => {
+    if (!campaign) return;
+    if (!confirm('Disconnect the broadcast channel?')) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return;
+    const r = await fetch('/api/twitch/disconnect', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${session.access_token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ campaignId: campaign.id }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      alert(`Failed to disconnect: ${err.error ?? r.statusText}`);
+      return;
+    }
+    setBroadcaster(null);
   };
 
   const regenerateToken = async () => {
@@ -208,6 +290,44 @@ export default function CampaignManage() {
           onCopy={() => copy('overlay', overlayUrl)}
           hint="Useful for previewing layouts. For OBS, use the per-character URLs below — one Browser Source per player."
         />
+      </section>
+
+      <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
+        <div className="flex justify-between items-center mb-2 gap-2 flex-wrap">
+          <h2 className="text-xl">Broadcast Channel</h2>
+          {broadcaster ? (
+            <button
+              onClick={disconnectBroadcaster}
+              className="text-xs px-3 py-1 bg-stone-700 hover:bg-red-700 rounded"
+            >
+              Disconnect
+            </button>
+          ) : (
+            <button
+              onClick={connectBroadcaster}
+              className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded"
+            >
+              Connect channel
+            </button>
+          )}
+        </div>
+        {broadcaster ? (
+          <p className="text-sm text-stone-300">
+            Linked to{' '}
+            <span className="text-purple-400">@{broadcaster.broadcaster_login}</span>{' '}
+            ({broadcaster.broadcaster_display_name}). Twitch features (chat
+            posts, alerts) will use this channel.
+          </p>
+        ) : (
+          <p className="text-sm text-stone-500">
+            No broadcast channel linked. Connect a Twitch account to use chat
+            posting and other broadcast-side features. The broadcaster account
+            can be different from your GM sign-in.
+          </p>
+        )}
+        {broadcasterFlash && (
+          <p className="text-xs text-emerald-400 mt-2">{broadcasterFlash}</p>
+        )}
       </section>
 
       <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
