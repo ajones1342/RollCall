@@ -11,6 +11,7 @@ create table if not exists public.campaigns (
   owner_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   theme jsonb not null default '{}',
+  settings jsonb not null default '{}',
   created_at timestamptz not null default now()
 );
 
