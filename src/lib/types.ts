@@ -29,11 +29,21 @@ export type Character = {
   updated_at: string;
 };
 
+export type CampaignSettings = {
+  // When true, the player-facing Party Information panel honors each
+  // character's hidden_fields list (so race/HP/etc. that the player chose
+  // to hide from the OBS overlay are also hidden from teammates).
+  // When false (default), the party panel always shows everything —
+  // hidden_fields only affects the OBS overlay.
+  partyViewRespectsHideToggles?: boolean;
+};
+
 export type Campaign = {
   id: string;
   owner_id: string;
   name: string;
   theme: Partial<Theme>;
+  settings: CampaignSettings;
   created_at: string;
 };
 

@@ -9,6 +9,7 @@ import {
   STANDARD_CONDITIONS,
   normalizeHiddenFields,
   type AttributeKey,
+  type Campaign,
   type Character,
   type HideableField,
 } from '../lib/types';
@@ -64,6 +65,9 @@ export default function PlayerEdit() {
   const [draft, setDraft] = useState<Draft>(blankDraft);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [partyMembers, setPartyMembers] = useState<Character[]>([]);
+  const [partyOpen, setPartyOpen] = useState(true);
   const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -94,6 +98,59 @@ export default function PlayerEdit() {
       setDraft(toDraft(ch));
     });
   }, [session, campaignId, characterId, navigate]);
+
+  // Party Information panel: fetch all characters + campaign settings,
+  // subscribe to live updates so HP changes / condition flips show up.
+  useEffect(() => {
+    if (!campaignId) return;
+
+    const refreshCampaign = () =>
+      supabase
+        .from('campaigns')
+        .select('*')
+        .eq('id', campaignId)
+        .maybeSingle()
+        .then(({ data }) => setCampaign((data as Campaign) ?? null));
+
+    const refreshParty = () =>
+      supabase
+        .from('characters')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('display_order', { ascending: true })
+        .then(({ data }) => setPartyMembers((data as Character[]) ?? []));
+
+    refreshCampaign();
+    refreshParty();
+
+    const channel = supabase
+      .channel(`party:${campaignId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'characters',
+          filter: `campaign_id=eq.${campaignId}`,
+        },
+        () => refreshParty()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'campaigns',
+          filter: `id=eq.${campaignId}`,
+        },
+        () => refreshCampaign()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [campaignId]);
 
   const dirty = useMemo(() => {
     if (!character) return false;
@@ -323,6 +380,14 @@ export default function PlayerEdit() {
         ))}
       </div>
 
+      <PartyInformation
+        members={partyMembers}
+        currentUserId={session?.user.id}
+        respectHideToggles={Boolean(campaign?.settings?.partyViewRespectsHideToggles)}
+        open={partyOpen}
+        onToggle={() => setPartyOpen((v) => !v)}
+      />
+
       <h2 className="text-xl mb-2">Notes</h2>
       <p className="text-sm text-stone-500 mb-2">
         Personal scratch space for the player and GM. Not shown on the overlay.
@@ -373,6 +438,116 @@ export default function PlayerEdit() {
           font-family: inherit;
         }
       `}</style>
+    </div>
+  );
+}
+
+function PartyInformation(props: {
+  members: Character[];
+  currentUserId?: string;
+  respectHideToggles: boolean;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  if (props.members.length === 0) return null;
+
+  return (
+    <section className="mb-8">
+      <button
+        onClick={props.onToggle}
+        className="w-full flex items-center justify-between gap-2 mb-2 text-left"
+      >
+        <h2 className="text-xl">Party Information</h2>
+        <span className="text-sm text-stone-400">
+          {props.members.length} {props.members.length === 1 ? 'member' : 'members'} ·{' '}
+          {props.open ? 'hide' : 'show'}
+        </span>
+      </button>
+      {props.open && (
+        <div className="space-y-2">
+          {props.members.map((m) => (
+            <PartyMemberRow
+              key={m.id}
+              c={m}
+              isSelf={m.user_id === props.currentUserId}
+              respectHideToggles={props.respectHideToggles}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PartyMemberRow(props: {
+  c: Character;
+  isSelf: boolean;
+  respectHideToggles: boolean;
+}) {
+  const c = props.c;
+  const hidden = props.respectHideToggles
+    ? new Set(normalizeHiddenFields(c.hidden_fields))
+    : new Set<string>();
+  const showRace = !hidden.has('race') && Boolean(c.race);
+  const showClass = !hidden.has('class') && Boolean(c.class);
+  const subtitleParts = [showRace ? c.race : null, showClass ? c.class : null].filter(
+    (p): p is string => Boolean(p)
+  );
+  const subtitle = subtitleParts.join(' · ');
+  const conditions = (c.conditions ?? []).filter(Boolean);
+  const showName = !hidden.has('name');
+  const showInspiration = !hidden.has('inspiration') && Boolean(c.inspiration);
+  const showHp = !hidden.has('hp');
+  const showConditions = !hidden.has('conditions') && conditions.length > 0;
+  const showAttributes = !hidden.has('attributes');
+  const tempHp = c.temp_hp ?? 0;
+
+  return (
+    <div
+      className={
+        'rounded border p-3 ' +
+        (props.isSelf
+          ? 'bg-stone-800 border-purple-700/60'
+          : 'bg-stone-800 border-stone-700')
+      }
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="text-lg">
+          {showInspiration && <span className="text-amber-400 mr-1.5">★</span>}
+          {showName ? c.name || '—' : '—'}
+          {props.isSelf && (
+            <span className="text-xs text-purple-400 ml-2">(you)</span>
+          )}
+        </div>
+        {showHp && (
+          <div className="text-sm text-stone-300 tabular-nums whitespace-nowrap">
+            HP {c.current_hp}/{c.max_hp}
+            {tempHp > 0 && (
+              <span className="text-emerald-400 ml-1">+{tempHp}</span>
+            )}
+          </div>
+        )}
+      </div>
+      {subtitle && (
+        <div className="text-sm text-stone-400 mt-0.5">{subtitle}</div>
+      )}
+      {showConditions && (
+        <div className="text-sm text-amber-300 italic mt-1">
+          {conditions.map((cn) => cn.toLowerCase()).join(', ')}
+        </div>
+      )}
+      {showAttributes && (
+        <div className="grid grid-cols-6 gap-2 mt-2 text-center text-sm">
+          {ATTRIBUTE_KEYS.map((k) => (
+            <div key={k} className="bg-stone-900 rounded py-1">
+              <div className="text-[10px] uppercase text-stone-500 tracking-wide">
+                {ATTRIBUTE_LABELS[k]}
+              </div>
+              <div className="text-stone-200 tabular-nums">{c[k]}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

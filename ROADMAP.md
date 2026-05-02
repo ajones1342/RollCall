@@ -22,6 +22,7 @@ If you only do these, RollCall becomes a tool you'd use happily on stream.
 | Auto-save with debounce | Players forget to hit Save. Save 500ms after edit with a visual "saved" indicator. | Small |
 | Drag-to-reorder party | `display_order` is already in the schema. GM needs to sort overlay cards to match player video-tile order in OBS. | Small |
 | Hide fields from overlay (per-character) | Mute irrelevant fields per scene/character — empty Race, no attributes, hide HP during downtime, etc. Player toggles their own; GM can toggle any (once GM-edit ships, the "or GM" part is free). Simple impl: `hidden_fields text[]` column on characters; edit form has "Show on overlay" checkbox per field; overlay skips anything in the array. | Small |
+| Party Information panel for players | Read-only panel on the player edit page showing all party members (name, race/class, HP/temp, inspiration, conditions, attributes). Refreshes via realtime. GM-controlled campaign setting `partyViewRespectsHideToggles` decides whether per-character overlay-hide toggles also hide from teammates (default off — players see everything). | Small |
 
 ## Tier 2 — Combat clarity
 

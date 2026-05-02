@@ -102,6 +102,20 @@ export default function CampaignManage() {
     );
   };
 
+  const setSetting = async <K extends keyof NonNullable<Campaign['settings']>>(
+    key: K,
+    value: NonNullable<Campaign['settings']>[K]
+  ) => {
+    if (!campaign) return;
+    const newSettings = { ...(campaign.settings ?? {}), [key]: value };
+    setCampaign({ ...campaign, settings: newSettings }); // optimistic
+    const { error } = await supabase
+      .from('campaigns')
+      .update({ settings: newSettings })
+      .eq('id', campaign.id);
+    if (error) alert(error.message);
+  };
+
   if (loading || !campaign) return <div className="p-8">Loading…</div>;
 
   const origin = window.location.origin;
@@ -138,6 +152,30 @@ export default function CampaignManage() {
           onCopy={() => copy('overlay', overlayUrl)}
           hint="Useful for previewing layouts. For OBS, use the per-character URLs below — one Browser Source per player."
         />
+      </section>
+
+      <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
+        <h2 className="text-xl mb-3">Settings</h2>
+        <label className="flex items-start gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            className="w-4 h-4 mt-1"
+            checked={Boolean(campaign.settings?.partyViewRespectsHideToggles)}
+            onChange={(e) =>
+              setSetting('partyViewRespectsHideToggles', e.target.checked)
+            }
+          />
+          <span>
+            <span className="block text-stone-200">
+              Party view respects per-character hide toggles
+            </span>
+            <span className="block text-xs text-stone-500 mt-0.5">
+              When off (default), players see everyone's full info on the party
+              panel. When on, fields a player has hidden from the OBS overlay are
+              also hidden from teammates.
+            </span>
+          </span>
+        </label>
       </section>
 
       <section>
