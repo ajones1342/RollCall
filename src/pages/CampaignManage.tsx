@@ -17,7 +17,15 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../hooks/useSession';
-import type { Campaign, Character } from '../lib/types';
+import {
+  advanceTurn,
+  previousTurn,
+  sortByInitiative,
+  type Campaign,
+  type Character,
+  type CombatState,
+  type Combatant,
+} from '../lib/types';
 
 export default function CampaignManage() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -153,6 +161,12 @@ export default function CampaignManage() {
           hint="Useful for previewing layouts. For OBS, use the per-character URLs below — one Browser Source per player."
         />
       </section>
+
+      <InitiativeTracker
+        combat={campaign.settings?.combat}
+        characters={characters}
+        onChange={(next) => setSetting('combat', next ?? undefined)}
+      />
 
       <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
         <h2 className="text-xl mb-3">Settings</h2>
@@ -290,6 +304,266 @@ function SortableCharacterRow(props: {
           </button>
         </div>
       </div>
+    </li>
+  );
+}
+
+function InitiativeTracker(props: {
+  combat: CombatState | undefined;
+  characters: Character[];
+  onChange: (next: CombatState | null) => void;
+}) {
+  const { combat, characters, onChange } = props;
+  const [npcName, setNpcName] = useState('');
+  const [npcInit, setNpcInit] = useState<string>('10');
+
+  const setCombat = (cb: (s: CombatState) => CombatState) => {
+    if (!combat) return;
+    onChange(cb(combat));
+  };
+
+  const startCombat = () => {
+    onChange({ active: true, round: 1, activeIndex: 0, combatants: [] });
+  };
+
+  const endCombat = () => {
+    if (!confirm('End combat and clear initiative?')) return;
+    onChange(null);
+  };
+
+  const addPlayer = (ch: Character) => {
+    setCombat((s) => {
+      if (s.combatants.some((cm) => cm.characterId === ch.id)) return s;
+      const combatants = sortByInitiative([
+        ...s.combatants,
+        {
+          id: crypto.randomUUID(),
+          characterId: ch.id,
+          name: ch.name || '(unnamed)',
+          initiative: 10,
+        },
+      ]);
+      return { ...s, combatants };
+    });
+  };
+
+  const addNpc = () => {
+    const name = npcName.trim();
+    const init = parseInt(npcInit, 10);
+    if (!name || Number.isNaN(init)) return;
+    setCombat((s) => {
+      const combatants = sortByInitiative([
+        ...s.combatants,
+        { id: crypto.randomUUID(), characterId: null, name, initiative: init },
+      ]);
+      return { ...s, combatants };
+    });
+    setNpcName('');
+    setNpcInit('10');
+  };
+
+  const updateInit = (id: string, init: number) => {
+    setCombat((s) => {
+      const updated = s.combatants.map((c) => (c.id === id ? { ...c, initiative: init } : c));
+      const sorted = sortByInitiative(updated);
+      const oldActive = s.combatants[s.activeIndex];
+      const newActive = oldActive ? sorted.findIndex((c) => c.id === oldActive.id) : 0;
+      return { ...s, combatants: sorted, activeIndex: Math.max(0, newActive) };
+    });
+  };
+
+  const updateName = (id: string, name: string) => {
+    setCombat((s) => ({
+      ...s,
+      combatants: s.combatants.map((c) => (c.id === id ? { ...c, name } : c)),
+    }));
+  };
+
+  const removeCombatant = (id: string) => {
+    setCombat((s) => {
+      const idx = s.combatants.findIndex((c) => c.id === id);
+      const combatants = s.combatants.filter((c) => c.id !== id);
+      let activeIndex = s.activeIndex;
+      if (combatants.length === 0) activeIndex = 0;
+      else if (idx < s.activeIndex) activeIndex = Math.max(0, s.activeIndex - 1);
+      else if (idx === s.activeIndex && activeIndex >= combatants.length) activeIndex = 0;
+      return { ...s, combatants, activeIndex };
+    });
+  };
+
+  const next = () => setCombat(advanceTurn);
+  const prev = () => setCombat(previousTurn);
+
+  if (!combat?.active) {
+    return (
+      <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl">Initiative</h2>
+          <button
+            onClick={startCombat}
+            className="text-sm px-3 py-1.5 bg-purple-700 hover:bg-purple-600 rounded"
+          >
+            Start combat
+          </button>
+        </div>
+        <p className="text-xs text-stone-500 mt-2">
+          Manual initiative for now — VTT-bridge modules (Fantasy Grounds, Foundry,
+          etc.) will populate this automatically in a future release.
+        </p>
+      </section>
+    );
+  }
+
+  const addedCharacterIds = new Set(combat.combatants.map((c) => c.characterId).filter(Boolean));
+  const addablePlayers = characters.filter((c) => !addedCharacterIds.has(c.id));
+  const active = combat.combatants[combat.activeIndex];
+
+  return (
+    <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="text-xl">
+          Initiative — Round {combat.round}
+          {active && <span className="text-purple-400"> · {active.name}'s turn</span>}
+        </h2>
+        <div className="flex gap-1">
+          <button
+            onClick={prev}
+            disabled={combat.combatants.length === 0}
+            className="text-sm px-3 py-1.5 bg-stone-700 hover:bg-stone-600 disabled:opacity-40 rounded"
+          >
+            ← Prev
+          </button>
+          <button
+            onClick={next}
+            disabled={combat.combatants.length === 0}
+            className="text-sm px-3 py-1.5 bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded"
+          >
+            Next turn →
+          </button>
+          <button
+            onClick={endCombat}
+            className="text-sm px-3 py-1.5 bg-stone-700 hover:bg-red-700 rounded ml-2"
+          >
+            End combat
+          </button>
+        </div>
+      </div>
+
+      {combat.combatants.length === 0 ? (
+        <p className="text-sm text-stone-500 mb-3">No combatants yet — add some below.</p>
+      ) : (
+        <ul className="space-y-1.5 mb-3">
+          {combat.combatants.map((cm, i) => (
+            <CombatantRow
+              key={cm.id}
+              combatant={cm}
+              isActive={i === combat.activeIndex}
+              isPC={Boolean(cm.characterId)}
+              onInitChange={(v) => updateInit(cm.id, v)}
+              onNameChange={(v) => updateName(cm.id, v)}
+              onRemove={() => removeCombatant(cm.id)}
+            />
+          ))}
+        </ul>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <span className="text-xs uppercase tracking-wide text-stone-400 mb-1 block">
+            Add player
+          </span>
+          {addablePlayers.length === 0 ? (
+            <p className="text-sm text-stone-500">All players added.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {addablePlayers.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => addPlayer(c)}
+                  className="text-sm px-3 py-1 bg-stone-900 border border-stone-600 hover:border-stone-400 rounded"
+                >
+                  + {c.name || '(unnamed)'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div>
+          <span className="text-xs uppercase tracking-wide text-stone-400 mb-1 block">
+            Add NPC / monster
+          </span>
+          <div className="flex gap-1">
+            <input
+              value={npcName}
+              onChange={(e) => setNpcName(e.target.value)}
+              placeholder="Name"
+              className="bg-stone-900 px-2 py-1 rounded border border-stone-600 text-sm flex-1"
+            />
+            <input
+              type="number"
+              value={npcInit}
+              onChange={(e) => setNpcInit(e.target.value)}
+              className="bg-stone-900 px-2 py-1 rounded border border-stone-600 text-sm w-16 text-center"
+            />
+            <button
+              onClick={addNpc}
+              disabled={!npcName.trim()}
+              className="text-sm px-3 py-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CombatantRow(props: {
+  combatant: Combatant;
+  isActive: boolean;
+  isPC: boolean;
+  onInitChange: (v: number) => void;
+  onNameChange: (v: string) => void;
+  onRemove: () => void;
+}) {
+  const { combatant: cm, isActive, isPC } = props;
+  return (
+    <li
+      className={
+        'flex items-center gap-2 px-3 py-2 rounded border ' +
+        (isActive
+          ? 'bg-purple-900/40 border-purple-600'
+          : 'bg-stone-900 border-stone-700')
+      }
+    >
+      <span className="text-stone-400 w-4 text-center">{isActive ? '▶' : ' '}</span>
+      <input
+        type="number"
+        value={cm.initiative}
+        onChange={(e) => props.onInitChange(parseInt(e.target.value || '0', 10))}
+        className="bg-stone-950 border border-stone-700 rounded px-2 py-0.5 text-sm w-14 text-center"
+      />
+      {isPC ? (
+        <span className="flex-1 text-stone-200">{cm.name}</span>
+      ) : (
+        <input
+          value={cm.name}
+          onChange={(e) => props.onNameChange(e.target.value)}
+          className="bg-stone-950 border border-stone-700 rounded px-2 py-0.5 text-sm flex-1"
+        />
+      )}
+      {isPC ? (
+        <span className="text-xs text-purple-400 px-1">PC</span>
+      ) : (
+        <span className="text-xs text-stone-500 px-1">NPC</span>
+      )}
+      <button
+        onClick={props.onRemove}
+        className="text-xs text-stone-500 hover:text-red-400"
+      >
+        Remove
+      </button>
     </li>
   );
 }

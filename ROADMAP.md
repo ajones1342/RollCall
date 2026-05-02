@@ -62,7 +62,7 @@ Bigger lifts but high payoff.
 
 | Feature | Notes |
 |---|---|
-| Initiative tracker | Current-turn highlight on the overlay. GM advances turn from a panel. |
+| Initiative tracker | Manual GM panel ships first (PCs + NPC/monster rows, init values, next/prev turn, round counter, active highlight on overlay + party panel). Schema is webhook-friendly so a future VTT-bridge module (Fantasy Grounds, Foundry, Roll20) can populate it via POST. |
 | Damage/heal calculator | "deal 8 to Aragorn, 4 to Frodo" parser. |
 | Private GM notes | Per-character, GM-only. |
 | Dice roller | `1d20+5` field that emits result to overlay briefly. |

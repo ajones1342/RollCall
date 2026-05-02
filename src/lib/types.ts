@@ -36,7 +36,66 @@ export type CampaignSettings = {
   // When false (default), the party panel always shows everything —
   // hidden_fields only affects the OBS overlay.
   partyViewRespectsHideToggles?: boolean;
+
+  // Combat / initiative tracker state. Undefined or .active=false means no
+  // combat is running. Designed to be replayable from a webhook payload —
+  // an external source (e.g. a Fantasy Grounds extension) can POST the full
+  // CombatState and replace this field idempotently.
+  combat?: CombatState;
 };
+
+// One combatant in the initiative order. PCs link to a characters row via
+// characterId so the overlay can highlight that character's card. NPCs/
+// monsters use only the name + initiative.
+export type Combatant = {
+  id: string; // local id; uuid generated client-side
+  characterId?: string | null; // null for NPCs / monsters
+  name: string;
+  initiative: number;
+};
+
+export type CombatState = {
+  active: boolean;
+  round: number;
+  activeIndex: number; // index into combatants[] of whose turn it is
+  combatants: Combatant[];
+};
+
+// Sort combatants by initiative descending (5e standard). Stable: ties keep
+// their existing relative order so a re-sort doesn't reshuffle equal rolls.
+export function sortByInitiative(combatants: Combatant[]): Combatant[] {
+  return [...combatants]
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => b.c.initiative - a.c.initiative || a.i - b.i)
+    .map((x) => x.c);
+}
+
+export function advanceTurn(state: CombatState): CombatState {
+  if (!state.active || state.combatants.length === 0) return state;
+  const next = state.activeIndex + 1;
+  if (next >= state.combatants.length) {
+    return { ...state, activeIndex: 0, round: state.round + 1 };
+  }
+  return { ...state, activeIndex: next };
+}
+
+export function previousTurn(state: CombatState): CombatState {
+  if (!state.active || state.combatants.length === 0) return state;
+  const prev = state.activeIndex - 1;
+  if (prev < 0) {
+    return {
+      ...state,
+      activeIndex: Math.max(0, state.combatants.length - 1),
+      round: Math.max(1, state.round - 1),
+    };
+  }
+  return { ...state, activeIndex: prev };
+}
+
+export function activeCombatant(state: CombatState | undefined): Combatant | null {
+  if (!state || !state.active) return null;
+  return state.combatants[state.activeIndex] ?? null;
+}
 
 export type Campaign = {
   id: string;

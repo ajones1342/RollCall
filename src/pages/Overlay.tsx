@@ -5,19 +5,25 @@ import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABELS,
   DEFAULT_THEME,
+  activeCombatant,
   alignToFlex,
   anchorCss,
   fillStyle,
   mergeTheme,
   normalizeHiddenFields,
+  type CampaignSettings,
   type Character,
+  type CombatState,
   type Theme,
 } from '../lib/types';
 
-function cardFilter(strength: number): string {
+function cardFilter(strength: number, activeTurn: boolean): string {
   const a = 0.9 * strength;
   const b = 0.85 * strength;
-  return `drop-shadow(0 4px 8px rgba(0,0,0,${a})) drop-shadow(0 0 4px rgba(0,0,0,${b}))`;
+  const base = `drop-shadow(0 4px 8px rgba(0,0,0,${a})) drop-shadow(0 0 4px rgba(0,0,0,${b}))`;
+  return activeTurn
+    ? `${base} drop-shadow(0 0 28px rgba(168, 85, 247, 0.9)) drop-shadow(0 0 12px rgba(168, 85, 247, 0.7))`
+    : base;
 }
 
 export default function Overlay() {
@@ -27,6 +33,7 @@ export default function Overlay() {
   }>();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
+  const [combat, setCombat] = useState<CombatState | undefined>(undefined);
 
   useEffect(() => {
     document.body.classList.add('overlay-mode');
@@ -46,10 +53,14 @@ export default function Overlay() {
     const refreshTheme = async () => {
       const { data } = await supabase
         .from('campaigns')
-        .select('theme')
+        .select('theme, settings')
         .eq('id', campaignId)
         .maybeSingle();
-      setTheme(mergeTheme((data as { theme: Partial<Theme> } | null)?.theme));
+      const row = data as
+        | { theme: Partial<Theme> | null; settings: CampaignSettings | null }
+        | null;
+      setTheme(mergeTheme(row?.theme));
+      setCombat(row?.settings?.combat);
     };
 
     refreshCharacters();
@@ -83,12 +94,15 @@ export default function Overlay() {
     };
   }, [campaignId, characterId]);
 
+  const active = activeCombatant(combat);
+  const isActiveFor = (c: Character) => Boolean(active && active.characterId === c.id);
+
   if (characterId) {
     const c = characters[0];
     if (!c) return null;
     return (
       <ScaleToFit>
-        <CharacterCard1080 c={c} theme={theme} />
+        <CharacterCard1080 c={c} theme={theme} activeTurn={isActiveFor(c)} />
       </ScaleToFit>
     );
   }
@@ -116,7 +130,7 @@ export default function Overlay() {
           }}
         >
           <ScaleToFit>
-            <CharacterCard1080 c={c} theme={theme} />
+            <CharacterCard1080 c={c} theme={theme} activeTurn={isActiveFor(c)} />
           </ScaleToFit>
         </div>
       ))}
@@ -231,11 +245,13 @@ export function CharacterCard1080({
   c,
   theme,
   editable,
+  activeTurn,
   onPositionChange,
 }: {
   c: Character;
   theme: Theme;
   editable?: boolean;
+  activeTurn?: boolean;
   onPositionChange?: (element: DraggableElement, x: number, y: number) => void;
 }) {
   const fill = fillStyle(theme);
@@ -330,7 +346,7 @@ export function CharacterCard1080({
         width: 1920,
         height: 1080,
         fontFamily: `'${theme.fontFamily}', serif`,
-        filter: cardFilter(theme.shadowStrength),
+        filter: cardFilter(theme.shadowStrength, Boolean(activeTurn)),
       }}
     >
       {editable && (

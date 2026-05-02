@@ -7,10 +7,12 @@ import {
   ATTRIBUTE_LABELS,
   HIDEABLE_FIELDS,
   STANDARD_CONDITIONS,
+  activeCombatant,
   normalizeHiddenFields,
   type AttributeKey,
   type Campaign,
   type Character,
+  type CombatState,
   type HideableField,
 } from '../lib/types';
 
@@ -384,6 +386,7 @@ export default function PlayerEdit() {
         members={partyMembers}
         currentUserId={session?.user.id}
         respectHideToggles={Boolean(campaign?.settings?.partyViewRespectsHideToggles)}
+        combat={campaign?.settings?.combat}
         open={partyOpen}
         onToggle={() => setPartyOpen((v) => !v)}
       />
@@ -446,10 +449,12 @@ function PartyInformation(props: {
   members: Character[];
   currentUserId?: string;
   respectHideToggles: boolean;
+  combat?: CombatState;
   open: boolean;
   onToggle: () => void;
 }) {
   if (props.members.length === 0) return null;
+  const active = activeCombatant(props.combat);
 
   return (
     <section className="mb-8">
@@ -463,6 +468,12 @@ function PartyInformation(props: {
           {props.open ? 'hide' : 'show'}
         </span>
       </button>
+      {props.combat?.active && (
+        <div className="mb-2 px-3 py-2 rounded bg-purple-900/40 border border-purple-700 text-sm text-purple-100">
+          Round {props.combat.round}
+          {active && <span> · {active.name}'s turn</span>}
+        </div>
+      )}
       {props.open && (
         <div className="space-y-2">
           {props.members.map((m) => (
@@ -470,6 +481,7 @@ function PartyInformation(props: {
               key={m.id}
               c={m}
               isSelf={m.user_id === props.currentUserId}
+              isActiveTurn={Boolean(active && active.characterId === m.id)}
               respectHideToggles={props.respectHideToggles}
             />
           ))}
@@ -482,6 +494,7 @@ function PartyInformation(props: {
 function PartyMemberRow(props: {
   c: Character;
   isSelf: boolean;
+  isActiveTurn: boolean;
   respectHideToggles: boolean;
 }) {
   const c = props.c;
@@ -505,10 +518,12 @@ function PartyMemberRow(props: {
   return (
     <div
       className={
-        'rounded border p-3 ' +
-        (props.isSelf
-          ? 'bg-stone-800 border-purple-700/60'
-          : 'bg-stone-800 border-stone-700')
+        'rounded border p-3 transition-colors ' +
+        (props.isActiveTurn
+          ? 'bg-purple-900/30 border-purple-500'
+          : props.isSelf
+            ? 'bg-stone-800 border-purple-700/60'
+            : 'bg-stone-800 border-stone-700')
       }
     >
       <div className="flex items-baseline justify-between gap-3">
