@@ -225,7 +225,7 @@ function DeathSavesIndicator({
   );
 }
 
-export type DraggableElement = 'name' | 'attributes' | 'hp' | 'streamer';
+export type DraggableElement = 'name' | 'attributes' | 'hp' | 'streamer' | 'portrait';
 
 export function CharacterCard1080({
   c,
@@ -243,6 +243,24 @@ export function CharacterCard1080({
   const sz = theme.fontSizes;
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // HP flash animation: detect current_hp changes and apply a brief glow.
+  // Force re-fire on consecutive changes by clearing then setting the class.
+  const [hpFlash, setHpFlash] = useState<'damage' | 'heal' | null>(null);
+  const prevHpRef = useRef<number>(c.current_hp);
+  useEffect(() => {
+    const prev = prevHpRef.current;
+    prevHpRef.current = c.current_hp;
+    if (c.current_hp === prev || !theme.enableHpAnimations) return;
+    const flash = c.current_hp < prev ? 'damage' : 'heal';
+    setHpFlash(null);
+    const start = window.setTimeout(() => setHpFlash(flash), 10);
+    const end = window.setTimeout(() => setHpFlash(null), 850);
+    return () => {
+      window.clearTimeout(start);
+      window.clearTimeout(end);
+    };
+  }, [c.current_hp, theme.enableHpAnimations]);
+
   const startDrag = (e: React.MouseEvent, element: DraggableElement) => {
     if (!editable || !onPositionChange || !cardRef.current) return;
     e.preventDefault();
@@ -256,7 +274,9 @@ export function CharacterCard1080({
           ? pos.attributesX
           : element === 'hp'
             ? pos.hpX
-            : pos.streamerX;
+            : element === 'streamer'
+              ? pos.streamerX
+              : pos.portraitX;
     const startY =
       element === 'name'
         ? pos.nameY
@@ -264,7 +284,9 @@ export function CharacterCard1080({
           ? pos.attributesY
           : element === 'hp'
             ? pos.hpY
-            : pos.streamerY;
+            : element === 'streamer'
+              ? pos.streamerY
+              : pos.portraitY;
     const startMouseX = e.clientX;
     const startMouseY = e.clientY;
     const onMove = (ev: MouseEvent) => {
@@ -318,6 +340,18 @@ export function CharacterCard1080({
           .rc-drag:active { cursor: grabbing; }
         `}</style>
       )}
+      <style>{`
+        @keyframes rc-hp-damage {
+          0%, 100% { transform: scale(1); filter: none; }
+          30% { transform: scale(1.12); filter: drop-shadow(0 0 18px #ef4444) drop-shadow(0 0 36px #ef4444); }
+        }
+        @keyframes rc-hp-heal {
+          0%, 100% { transform: scale(1); filter: none; }
+          30% { transform: scale(1.12); filter: drop-shadow(0 0 18px #10b981) drop-shadow(0 0 36px #10b981); }
+        }
+        .rc-hp-damage { animation: rc-hp-damage 0.85s ease-out; transform-origin: left center; display: inline-block; }
+        .rc-hp-heal { animation: rc-hp-heal 0.85s ease-out; transform-origin: left center; display: inline-block; }
+      `}</style>
       {/* Name block — anchored corner of block at (nameX, nameY) bottom-left coords. */}
       {showTopLeft && (
         <div
@@ -445,6 +479,7 @@ export function CharacterCard1080({
               HP
             </span>
             <span
+              className={hpFlash ? `rc-hp-${hpFlash}` : undefined}
               style={{
                 ...fill,
                 fontSize: sz.hpValue,
@@ -501,6 +536,39 @@ export function CharacterCard1080({
           >
             {c.twitch_display_name}
           </span>
+        </div>
+      )}
+
+      {/* Character portrait (Twitch avatar) — anchor: top-left of square at
+          (portraitX, portraitY). Hidden by default; the GM enables via
+          theme.showPortraits. */}
+      {theme.showPortraits && c.twitch_avatar_url && (
+        <div
+          className={editable ? 'rc-drag' : undefined}
+          onMouseDown={editable ? (e) => startDrag(e, 'portrait') : undefined}
+          style={{
+            position: 'absolute',
+            top: 1080 - pos.portraitY,
+            left: pos.portraitX,
+            width: pos.portraitSize,
+            height: pos.portraitSize,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            ...dragStyle,
+          }}
+        >
+          <img
+            src={c.twitch_avatar_url}
+            alt=""
+            draggable={false}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+              pointerEvents: 'none',
+            }}
+          />
         </div>
       )}
     </div>

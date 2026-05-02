@@ -124,6 +124,9 @@ export type Positions = {
   streamerAnchor: Anchor;
   streamerAlign: TextAlign;
   streamerWidth: number;
+  portraitX: number;
+  portraitY: number;
+  portraitSize: number;
 };
 
 export type Theme = {
@@ -140,6 +143,8 @@ export type Theme = {
   edgePadding: number; // legacy fallback for themes saved before positions existed
   positions: Positions;
   fontSizes: FontSizes;
+  enableHpAnimations: boolean;
+  showPortraits: boolean;
 };
 
 export function defaultPositions(edgePadding: number = 80): Positions {
@@ -162,6 +167,9 @@ export function defaultPositions(edgePadding: number = 80): Positions {
     streamerAnchor: 'bottom-left',
     streamerAlign: 'center',
     streamerWidth: 1920,
+    portraitX: edgePadding,
+    portraitY: 1080 - edgePadding,
+    portraitSize: 200,
   };
 }
 
@@ -210,6 +218,9 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
       streamerAnchor: anchor('streamerAnchor') ?? def.streamerAnchor,
       streamerAlign: align('streamerAlign') ?? def.streamerAlign,
       streamerWidth: num('streamerWidth') ?? def.streamerWidth,
+      portraitX: num('portraitX') ?? def.portraitX,
+      portraitY: num('portraitY') ?? def.portraitY,
+      portraitSize: num('portraitSize') ?? def.portraitSize,
     };
   }
 
@@ -241,6 +252,9 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
     streamerAnchor: def.streamerAnchor,
     streamerAlign: def.streamerAlign,
     streamerWidth: 1920 - oldStreamerLeft - oldStreamerRight,
+    portraitX: def.portraitX,
+    portraitY: def.portraitY,
+    portraitSize: def.portraitSize,
   };
 }
 
@@ -248,6 +262,8 @@ export const DEFAULT_THEME: Theme = {
   fontFamily: 'Cormorant SC',
   fillMode: 'solid',
   solidColor: '#ffffff',
+  enableHpAnimations: true,
+  showPortraits: false,
   gradientFrom: '#02fdfc',
   gradientTo: '#c22cff',
   gradientAngle: 85,
@@ -288,6 +304,8 @@ export function mergeTheme(partial: Partial<Theme> | null | undefined): Theme {
     edgePadding,
     positions: migratePositions(partial.positions, edgePadding),
     fontSizes: { ...DEFAULT_THEME.fontSizes, ...(partial.fontSizes ?? {}) },
+    enableHpAnimations: partial.enableHpAnimations ?? DEFAULT_THEME.enableHpAnimations,
+    showPortraits: partial.showPortraits ?? DEFAULT_THEME.showPortraits,
   };
 }
 

@@ -40,7 +40,9 @@ const SAMPLE_CHARACTER: Character = {
   inspiration: true,
   notes: '',
   twitch_display_name: 'StreamerName',
-  twitch_avatar_url: null,
+  // Inline SVG so the preview shows a portrait without an external request.
+  twitch_avatar_url:
+    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="%237c2d12"/><text x="100" y="138" font-size="130" font-family="serif" fill="white" text-anchor="middle">A</text></svg>',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -148,9 +150,12 @@ export default function ThemeEditor() {
       } else if (element === 'hp') {
         p.hpX = x;
         p.hpY = y;
-      } else {
+      } else if (element === 'streamer') {
         p.streamerX = x;
         p.streamerY = y;
+      } else if (element === 'portrait') {
+        p.portraitX = x;
+        p.portraitY = y;
       }
       return { ...d, positions: p };
     });
@@ -300,6 +305,21 @@ export default function ThemeEditor() {
             />
           </Section>
 
+          <Section title="Effects">
+            <ToggleRow
+              label="HP change animations"
+              checked={draft.enableHpAnimations}
+              onChange={(v) => setField('enableHpAnimations', v)}
+              hint="Brief red flash on damage, green on heal."
+            />
+            <ToggleRow
+              label="Show character portraits"
+              checked={draft.showPortraits}
+              onChange={(v) => setField('showPortraits', v)}
+              hint="Renders each player's Twitch avatar as a circle on the overlay. Position controls appear in Element Positions when enabled."
+            />
+          </Section>
+
           <Section title="Element Positions">
             <p className="text-xs text-stone-500 mb-3">
               Bottom-left of the canvas is (0, 0). Horizontal increases rightward;
@@ -420,6 +440,38 @@ export default function ThemeEditor() {
                 onChange={(v) => setPosition('streamerAlign', v)}
               />
             </PositionGroup>
+
+            {draft.showPortraits && (
+              <PositionGroup label="Portrait">
+                <SliderRow
+                  label="Horizontal"
+                  value={draft.positions.portraitX}
+                  min={0}
+                  max={1920}
+                  step={2}
+                  unit="px"
+                  onChange={(v) => setPosition('portraitX', v)}
+                />
+                <SliderRow
+                  label="Vertical"
+                  value={draft.positions.portraitY}
+                  min={0}
+                  max={1080}
+                  step={2}
+                  unit="px"
+                  onChange={(v) => setPosition('portraitY', v)}
+                />
+                <SliderRow
+                  label="Size"
+                  value={draft.positions.portraitSize}
+                  min={40}
+                  max={500}
+                  step={2}
+                  unit="px"
+                  onChange={(v) => setPosition('portraitSize', v)}
+                />
+              </PositionGroup>
+            )}
           </Section>
 
           <Section title="Font Sizes">
@@ -616,6 +668,30 @@ function AnchorRow(props: { value: Anchor; onChange: (v: Anchor) => void }) {
         {cell('bottom-right')}
       </div>
     </div>
+  );
+}
+
+function ToggleRow(props: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  hint?: string;
+}) {
+  return (
+    <label className="flex items-start gap-3 cursor-pointer select-none py-1">
+      <input
+        type="checkbox"
+        className="w-4 h-4 mt-1"
+        checked={props.checked}
+        onChange={(e) => props.onChange(e.target.checked)}
+      />
+      <span>
+        <span className="block text-stone-200 text-sm">{props.label}</span>
+        {props.hint && (
+          <span className="block text-xs text-stone-500 mt-0.5">{props.hint}</span>
+        )}
+      </span>
+    </label>
   );
 }
 
