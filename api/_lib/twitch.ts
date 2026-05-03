@@ -7,10 +7,14 @@ export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 export const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID;
 export const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
 
-// Scopes we request from the broadcaster. user:write:chat lets us POST chat
-// messages on the broadcaster's behalf. Add channel:read:subscriptions later
-// if we ever ship sub badges.
-export const BROADCASTER_SCOPES = ['user:write:chat'];
+// Scopes we request from the broadcaster.
+// - user:write:chat:        POST chat messages as the broadcaster
+// - channel:manage:polls:   create / end Twitch native polls
+//
+// When this list grows, existing broadcaster connections only have the
+// scopes they were originally granted — they need to disconnect+reconnect
+// to upgrade. The UI detects missing scopes per-feature and prompts.
+export const BROADCASTER_SCOPES = ['user:write:chat', 'channel:manage:polls'];
 
 export function adminClient(): SupabaseClient {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {

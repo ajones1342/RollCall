@@ -471,6 +471,12 @@ export default function CampaignManage() {
         campaignId={campaign.id}
       />
 
+      <TwitchPolls
+        broadcaster={broadcaster}
+        campaignId={campaign.id}
+        onReconnect={connectBroadcaster}
+      />
+
       <InitiativeTracker
         combat={campaign.settings?.combat}
         characters={characters}
@@ -827,6 +833,201 @@ function DiceRoller(props: {
       <p className="text-xs text-stone-500 mt-2">
         Result broadcasts to the OBS overlay as a brief toast. Format: NdM, NdM+K, NdM-K.
       </p>
+    </section>
+  );
+}
+
+function TwitchPolls(props: {
+  broadcaster: {
+    broadcaster_login: string;
+    broadcaster_display_name: string;
+    scopes: string[];
+  } | null;
+  campaignId: string;
+  onReconnect: () => void;
+}) {
+  const POLLS_SCOPE = 'channel:manage:polls';
+  const DURATIONS = [15, 30, 60, 120, 300];
+  const [title, setTitle] = useState('');
+  const [choices, setChoices] = useState<string[]>(['', '']);
+  const [duration, setDuration] = useState(60);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [activePoll, setActivePoll] = useState<{
+    title: string;
+    endsAt: number;
+  } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  // Tick once a second while a poll is active so the countdown updates.
+  useEffect(() => {
+    if (!activePoll) return;
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [activePoll]);
+
+  // Auto-clear the active poll banner after the duration elapses.
+  useEffect(() => {
+    if (!activePoll) return;
+    if (now >= activePoll.endsAt) setActivePoll(null);
+  }, [activePoll, now]);
+
+  if (!props.broadcaster) return null;
+
+  const hasScope = props.broadcaster.scopes?.includes(POLLS_SCOPE);
+
+  const setChoice = (i: number, v: string) =>
+    setChoices((cs) => cs.map((c, idx) => (idx === i ? v : c)));
+
+  const addChoice = () =>
+    setChoices((cs) => (cs.length < 5 ? [...cs, ''] : cs));
+
+  const removeChoice = (i: number) =>
+    setChoices((cs) => (cs.length > 2 ? cs.filter((_, idx) => idx !== i) : cs));
+
+  const startPoll = async () => {
+    setError(null);
+    const trimmedTitle = title.trim();
+    const trimmedChoices = choices.map((c) => c.trim()).filter(Boolean);
+    if (!trimmedTitle) {
+      setError('Title is required');
+      return;
+    }
+    if (trimmedChoices.length < 2) {
+      setError('Need at least 2 non-empty choices');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not signed in');
+      const r = await fetch('/api/twitch/start-poll', {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${session.access_token}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          campaignId: props.campaignId,
+          title: trimmedTitle,
+          choices: trimmedChoices,
+          durationSeconds: duration,
+        }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        setError(err.error ?? r.statusText);
+        return;
+      }
+      const data = (await r.json()) as { title: string; ends_at: string };
+      setActivePoll({
+        title: data.title,
+        endsAt: new Date(data.ends_at).getTime(),
+      });
+      // Reset form for the next poll.
+      setTitle('');
+      setChoices(['', '']);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
+      <h2 className="text-xl mb-3">Polls</h2>
+
+      {!hasScope ? (
+        <div className="space-y-2">
+          <p className="text-sm text-amber-300">
+            Polls need the <code>channel:manage:polls</code> permission, which
+            the linked broadcast channel hasn't granted yet. Reconnect the
+            channel to grant it.
+          </p>
+          <button
+            onClick={props.onReconnect}
+            className="text-sm px-3 py-1.5 bg-purple-700 hover:bg-purple-600 rounded"
+          >
+            Reconnect broadcast channel
+          </button>
+        </div>
+      ) : activePoll && now < activePoll.endsAt ? (
+        <div className="space-y-2">
+          <div className="text-sm text-emerald-400">
+            Poll active: <strong>{activePoll.title}</strong>
+          </div>
+          <div className="text-xs text-stone-400">
+            Ends in {Math.max(0, Math.ceil((activePoll.endsAt - now) / 1000))}s.
+            Voters use Twitch's native poll UI in the player.
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Question"
+            maxLength={60}
+            className="w-full bg-stone-900 px-3 py-2 rounded border border-stone-600 text-sm"
+          />
+          {choices.map((c, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-xs text-stone-500 w-4">{i + 1}.</span>
+              <input
+                value={c}
+                onChange={(e) => setChoice(i, e.target.value)}
+                placeholder={`Choice ${i + 1}`}
+                maxLength={25}
+                className="flex-1 bg-stone-900 px-2 py-1 rounded border border-stone-600 text-sm"
+              />
+              {choices.length > 2 && (
+                <button
+                  onClick={() => removeChoice(i)}
+                  aria-label="Remove choice"
+                  className="text-xs text-stone-500 hover:text-red-400 px-1"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          <div className="flex flex-wrap items-center gap-2">
+            {choices.length < 5 && (
+              <button
+                onClick={addChoice}
+                className="text-xs px-2 py-1 bg-stone-900 hover:bg-stone-700 border border-stone-600 rounded"
+              >
+                + Add choice
+              </button>
+            )}
+            <label className="flex items-center gap-1 text-xs text-stone-400 ml-auto">
+              <span>Duration</span>
+              <select
+                value={duration}
+                onChange={(e) => setDuration(parseInt(e.target.value, 10))}
+                className="bg-stone-900 px-2 py-1 rounded border border-stone-600 text-stone-200"
+              >
+                {DURATIONS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}s
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              onClick={startPoll}
+              disabled={submitting}
+              className="text-sm px-4 py-1.5 bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded"
+            >
+              {submitting ? 'Starting…' : 'Start poll'}
+            </button>
+          </div>
+          {error && <p className="text-xs text-red-400">{error}</p>}
+        </div>
+      )}
     </section>
   );
 }
