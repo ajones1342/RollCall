@@ -187,23 +187,51 @@ export default function CampaignManage() {
   // double-fire because by then prev matches current.
   useEffect(() => {
     if (!campaign || !broadcaster) {
+      console.log('[rc-alerts] effect skipped', {
+        hasCampaign: !!campaign,
+        hasBroadcaster: !!broadcaster,
+      });
       prevCharsRef.current = new Map(characters.map((c) => [c.id, c]));
       return;
     }
     const alerts = campaign.settings?.alerts ?? {};
     const prev = prevCharsRef.current;
+    console.log('[rc-alerts] effect running', {
+      charCount: characters.length,
+      prevSize: prev?.size ?? null,
+      alerts,
+    });
     if (prev) {
       for (const c of characters) {
         const before = prev.get(c.id);
         if (!before) continue;
+        if (c.current_hp !== before.current_hp) {
+          console.log('[rc-alerts] HP change', {
+            char: c.name || c.id,
+            beforeHp: before.current_hp,
+            afterHp: c.current_hp,
+            maxHp: c.max_hp,
+            beforePct: before.current_hp / Math.max(1, before.max_hp),
+            afterPct: c.current_hp / Math.max(1, c.max_hp),
+            wouldFireZero:
+              alerts.onZeroHp && before.current_hp > 0 && c.current_hp === 0,
+            wouldFireLow:
+              alerts.onLowHp &&
+              before.current_hp / Math.max(1, before.max_hp) > 0.25 &&
+              c.current_hp / Math.max(1, c.max_hp) <= 0.25 &&
+              c.current_hp > 0,
+          });
+        }
         if (c.current_hp >= before.current_hp) continue; // not damage
         const max = Math.max(1, c.max_hp);
         const beforePct = before.current_hp / Math.max(1, before.max_hp);
         const afterPct = c.current_hp / max;
         // Hit 0 takes priority over the bloodied alert.
         if (alerts.onZeroHp && before.current_hp > 0 && c.current_hp === 0) {
+          console.log('[rc-alerts] firing zero-hp for', c.name);
           fireAlert(`💀 ${c.name || 'Unnamed'} is down (0 HP).`);
         } else if (alerts.onLowHp && beforePct > 0.25 && afterPct <= 0.25 && c.current_hp > 0) {
+          console.log('[rc-alerts] firing low-hp for', c.name);
           fireAlert(
             `🩸 ${c.name || 'Unnamed'} is bloodied: HP ${c.current_hp}/${c.max_hp}.`
           );
