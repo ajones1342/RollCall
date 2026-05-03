@@ -103,6 +103,24 @@ export async function getAuthedUser(
   return { id: data.user.id, email: data.user.email };
 }
 
+// Resolve a per-campaign VTT API token (sent as a Bearer header by VTT
+// modules) to its campaign ID. Returns null if the header is missing,
+// malformed, or the token doesn't match any campaign.
+export async function getCampaignFromVttToken(
+  supabase: SupabaseClient,
+  authHeader: string | null
+): Promise<string | null> {
+  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) return null;
+  const token = authHeader.slice(7).trim();
+  if (!token) return null;
+  const { data } = await supabase
+    .from('campaign_tokens')
+    .select('campaign_id')
+    .eq('token', token)
+    .maybeSingle();
+  return (data as { campaign_id: string } | null)?.campaign_id ?? null;
+}
+
 // Confirm the given user owns the given campaign.
 export async function userOwnsCampaign(
   supabase: SupabaseClient,

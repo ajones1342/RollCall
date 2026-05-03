@@ -34,10 +34,44 @@ JSON body. Top-level keys:
 |---|---|---|---|
 | `combat` | `CombatState` or `null` | optional | Replaces `campaigns.settings.combat`. Pass `null` to clear (end combat). |
 | `lastRoll` | `DiceRoll` | optional | Replaces `campaigns.settings.lastRoll` — overlay shows a brief toast when this changes. |
+| `characters` | `{ [rollcallUuid]: PartialCharacter }` | optional | Per-character partial updates (HP, conditions, death saves, inspiration). See **Per-character updates** below. |
 
 At least one of these must be present, otherwise the endpoint returns `400`.
 
 Unknown keys are ignored — your module can include extra fields without rejection. Fields that aren't in the whitelist are silently dropped.
+
+### Per-character updates
+
+The `characters` field maps RollCall character UUIDs to partial updates. Only these fields are accepted; everything else is silently ignored:
+
+| Field | Type | Notes |
+|---|---|---|
+| `current_hp` | int ≥ 0 | Floored. |
+| `max_hp` | int ≥ 0 | Floored. |
+| `temp_hp` | int ≥ 0 | Floored. |
+| `conditions` | `string[]` | Replaces the current list. Non-string entries dropped. |
+| `death_save_successes` | int 0–3 | Clamped. |
+| `death_save_failures` | int 0–3 | Clamped. |
+| `inspiration` | bool | |
+
+Every UUID is validated to belong to the authenticated campaign before update — passing an unknown UUID, or one from another campaign, is silently dropped (returned in the response so you can see what was applied). Player-owned fields (name, race, class, attributes, hidden_fields, notes) are deliberately not included; those should stay player-driven.
+
+The response includes `characters_updated: string[]` listing the UUIDs that actually got applied.
+
+Example:
+
+```json
+{
+  "characters": {
+    "uuid-aragorn": { "current_hp": 18, "temp_hp": 5, "conditions": ["Poisoned"] },
+    "uuid-frodo":   { "current_hp": 22, "inspiration": true }
+  }
+}
+```
+
+### Combat updates with character mapping
+
+For combat state, `combatants[].characterId` should be a RollCall UUID for PCs and `null` for NPCs. The overlay only highlights the active card if the active combatant's `characterId` matches a known character — so VTT modules need to map their own combatant identifiers to RollCall UUIDs before sending. See [`GET /api/vtt/characters`](#get-apivttcharacters) for the mapping helper.
 
 ### `CombatState` shape
 
@@ -139,10 +173,51 @@ The endpoint requires two environment variables in the Vercel project:
 
 The service-role key is **server-side only** — never include it in any client-bundled code. It bypasses RLS, which is why the endpoint enforces auth via the per-campaign Bearer token.
 
+## `GET /api/vtt/characters`
+
+Returns the campaign's character list so a VTT module can build a name-to-UUID mapping dialog. Same Bearer token auth as `/api/vtt/state`.
+
+```sh
+curl https://rollcall.dungeonfevr.com/api/vtt/characters \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+Response:
+
+```json
+{
+  "characters": [
+    {
+      "id": "uuid-aragorn",
+      "name": "Aragorn",
+      "race": "Half-Elf",
+      "class": "Ranger 5",
+      "twitch_display_name": "ravendarq",
+      "display_order": 0
+    },
+    {
+      "id": "uuid-frodo",
+      "name": "Frodo",
+      "race": "Halfling",
+      "class": "Rogue 4",
+      "twitch_display_name": "halfling42",
+      "display_order": 1
+    }
+  ]
+}
+```
+
+Sorted by `display_order` (matches the GM's reordering on the campaign page).
+
+Recommended VTT module flow:
+1. On extension start (or when the GM opens the mapping dialog), fetch this endpoint.
+2. For each PC in your VTT's combat tracker / party list, present a dropdown of these RollCall characters. Pre-select via case-insensitive name match if possible.
+3. Save the GM's confirmed mapping (FG sheet path → RollCall UUID) inside your extension's local settings.
+4. At runtime, when the VTT fires a change event on a character, look up the mapping, build a `characters: { [uuid]: partial }` payload, and POST to `/api/vtt/state`.
+
 ## Open items
 
-These are planned but not in v1:
+Planned but not in v1:
 
-- A complementary `GET /api/vtt/state/<campaignId>` to read current state (useful for VTT modules that want to reconcile on connect).
-- A character-mapping helper: a `POST /api/vtt/characters` returning the campaign's character list with their UUIDs and Twitch handles so VTT modules can build a name → UUID map automatically.
-- Per-character HP / condition push (currently you can only update `combat` and `lastRoll`; HP changes still flow through the GM page).
+- `GET /api/vtt/state/<campaignId>` to read current state (useful for VTT modules that want to reconcile on connect).
+- EventSub-style push from RollCall to the VTT (currently traffic is one-way — VTT pushes, RollCall reflects).
