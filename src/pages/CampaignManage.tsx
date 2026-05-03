@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   DndContext,
@@ -159,6 +159,83 @@ export default function CampaignManage() {
       )
     );
   };
+
+  // ─── Twitch alert triggers ────────────────────────────────────
+  const prevCharsRef = useRef<Map<string, Character> | null>(null);
+  const prevCombatRef = useRef<CombatState | undefined>(undefined);
+
+  const fireAlert = async (message: string) => {
+    if (!campaign) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return;
+    // Fire-and-forget — alerts shouldn't block UI on Twitch latency.
+    fetch('/api/twitch/post-chat', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${session.access_token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ campaignId: campaign.id, message }),
+    }).catch(() => {});
+  };
+
+  // Detect HP transitions on characters. We compare each character's current
+  // state to the previous snapshot stored in a ref. Skip the first run (when
+  // prev is null) so we don't alert on initial load. Realtime echoes won't
+  // double-fire because by then prev matches current.
+  useEffect(() => {
+    if (!campaign || !broadcaster) {
+      prevCharsRef.current = new Map(characters.map((c) => [c.id, c]));
+      return;
+    }
+    const alerts = campaign.settings?.alerts ?? {};
+    const prev = prevCharsRef.current;
+    if (prev) {
+      for (const c of characters) {
+        const before = prev.get(c.id);
+        if (!before) continue;
+        if (c.current_hp >= before.current_hp) continue; // not damage
+        const max = Math.max(1, c.max_hp);
+        const beforePct = before.current_hp / Math.max(1, before.max_hp);
+        const afterPct = c.current_hp / max;
+        // Hit 0 takes priority over the bloodied alert.
+        if (alerts.onZeroHp && before.current_hp > 0 && c.current_hp === 0) {
+          fireAlert(`💀 ${c.name || 'Unnamed'} is down (0 HP).`);
+        } else if (alerts.onLowHp && beforePct > 0.25 && afterPct <= 0.25 && c.current_hp > 0) {
+          fireAlert(
+            `🩸 ${c.name || 'Unnamed'} is bloodied: HP ${c.current_hp}/${c.max_hp}.`
+          );
+        }
+      }
+    }
+    prevCharsRef.current = new Map(characters.map((c) => [c.id, c]));
+  }, [characters, campaign, broadcaster]);
+
+  // Detect round / turn advances on combat state.
+  useEffect(() => {
+    if (!campaign || !broadcaster) {
+      prevCombatRef.current = campaign?.settings?.combat;
+      return;
+    }
+    const alerts = campaign.settings?.alerts ?? {};
+    const prev = prevCombatRef.current;
+    const cur = campaign.settings?.combat;
+    if (
+      alerts.onRoundAdvance &&
+      prev?.active &&
+      cur?.active &&
+      (prev.round !== cur.round || prev.activeIndex !== cur.activeIndex)
+    ) {
+      const active = cur.combatants[cur.activeIndex];
+      if (active) {
+        fireAlert(`🎯 Round ${cur.round} — ${active.name}'s turn.`);
+      }
+    }
+    prevCombatRef.current = cur;
+  }, [campaign, broadcaster]);
+  // ─── /Twitch alert triggers ───────────────────────────────────
 
   const refreshBroadcaster = () => {
     if (!campaignId) return;
@@ -422,6 +499,55 @@ export default function CampaignManage() {
             </span>
           </span>
         </label>
+
+        <div className="mt-5 pt-4 border-t border-stone-700">
+          <div className="text-stone-200 mb-1">Twitch chat alerts</div>
+          <p className="text-xs text-stone-500 mb-3">
+            Auto-post events to your linked broadcast channel. This page must be
+            open during play for alerts to fire.{' '}
+            {!broadcaster && (
+              <span className="text-amber-400">
+                Connect a broadcast channel above to enable.
+              </span>
+            )}
+          </p>
+          <AlertToggle
+            label="Round advances"
+            description={'Fires on Next/Prev turn — "Round 3 — Aragorn’s turn"'}
+            checked={Boolean(campaign.settings?.alerts?.onRoundAdvance)}
+            disabled={!broadcaster}
+            onChange={(v) =>
+              setSetting('alerts', {
+                ...(campaign.settings?.alerts ?? {}),
+                onRoundAdvance: v,
+              })
+            }
+          />
+          <AlertToggle
+            label="Below 25% HP (bloodied)"
+            description="Fires when a character drops past 25% max HP"
+            checked={Boolean(campaign.settings?.alerts?.onLowHp)}
+            disabled={!broadcaster}
+            onChange={(v) =>
+              setSetting('alerts', {
+                ...(campaign.settings?.alerts ?? {}),
+                onLowHp: v,
+              })
+            }
+          />
+          <AlertToggle
+            label="Drops to 0 HP"
+            description="Fires when a character is downed"
+            checked={Boolean(campaign.settings?.alerts?.onZeroHp)}
+            disabled={!broadcaster}
+            onChange={(v) =>
+              setSetting('alerts', {
+                ...(campaign.settings?.alerts ?? {}),
+                onZeroHp: v,
+              })
+            }
+          />
+        </div>
       </section>
 
       <section>
@@ -962,6 +1088,35 @@ function CombatantRow(props: {
         Remove
       </button>
     </li>
+  );
+}
+
+function AlertToggle(props: {
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label
+      className={
+        'flex items-start gap-3 py-1 select-none ' +
+        (props.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer')
+      }
+    >
+      <input
+        type="checkbox"
+        className="w-4 h-4 mt-1"
+        checked={props.checked}
+        disabled={props.disabled}
+        onChange={(e) => props.onChange(e.target.checked)}
+      />
+      <span>
+        <span className="block text-stone-200 text-sm">{props.label}</span>
+        <span className="block text-xs text-stone-500 mt-0.5">{props.description}</span>
+      </span>
+    </label>
   );
 }
 

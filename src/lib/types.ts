@@ -46,6 +46,16 @@ export type CampaignSettings = {
   // Most recent GM dice roll. Overlay watches this for changes (by
   // rolledAt timestamp) and shows a brief toast.
   lastRoll?: DiceRoll;
+
+  // Per-event Twitch chat alerts. All default off. The GM toggles these on
+  // the campaign manage page; alerts only fire when a broadcast channel is
+  // linked. Alerts are observed and posted from the campaign manage page,
+  // so the GM needs that page open during play.
+  alerts?: {
+    onRoundAdvance?: boolean; // "Round 3 — Aragorn's turn"
+    onLowHp?: boolean; // crosses 25% threshold downward
+    onZeroHp?: boolean; // hits exactly 0
+  };
 };
 
 export type DiceRoll = {
