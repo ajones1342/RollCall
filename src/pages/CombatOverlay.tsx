@@ -90,7 +90,10 @@ export default function CombatOverlay() {
   }, [campaignId]);
 
   return (
-    <ScaleToFit canvasWidth={theme.canvasWidth} canvasHeight={theme.canvasHeight}>
+    <ScaleToFit
+      canvasWidth={theme.combatCanvasWidth}
+      canvasHeight={theme.combatCanvasHeight}
+    >
       <CombatTrackerCanvas theme={theme} combat={combat} characters={characters} />
     </ScaleToFit>
   );
@@ -130,8 +133,8 @@ export function CombatTrackerCanvas({
           pos.trackerAnchor,
           pos.trackerX,
           pos.trackerY,
-          theme.canvasWidth,
-          theme.canvasHeight
+          theme.combatCanvasWidth,
+          theme.combatCanvasHeight
         ),
         width: pos.trackerWidth,
         fontFamily: `'${theme.fontFamily}', serif`,

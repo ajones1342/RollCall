@@ -259,6 +259,8 @@ export type Theme = {
   showPortraits: boolean;
   canvasWidth: number;
   canvasHeight: number;
+  combatCanvasWidth: number;
+  combatCanvasHeight: number;
 };
 
 export const CANVAS_PRESETS: { label: string; width: number; height: number }[] = [
@@ -410,6 +412,8 @@ export const DEFAULT_THEME: Theme = {
   showPortraits: false,
   canvasWidth: 1920,
   canvasHeight: 1080,
+  combatCanvasWidth: 1920,
+  combatCanvasHeight: 1080,
   gradientFrom: '#02fdfc',
   gradientTo: '#c22cff',
   gradientAngle: 85,
@@ -454,6 +458,16 @@ export function mergeTheme(partial: Partial<Theme> | null | undefined): Theme {
     showPortraits: partial.showPortraits ?? DEFAULT_THEME.showPortraits,
     canvasWidth: partial.canvasWidth ?? DEFAULT_THEME.canvasWidth,
     canvasHeight: partial.canvasHeight ?? DEFAULT_THEME.canvasHeight,
+    // Combat canvas defaults to the character canvas if unset, so older
+    // themes look identical until the GM customizes it separately.
+    combatCanvasWidth:
+      partial.combatCanvasWidth ??
+      partial.canvasWidth ??
+      DEFAULT_THEME.combatCanvasWidth,
+    combatCanvasHeight:
+      partial.combatCanvasHeight ??
+      partial.canvasHeight ??
+      DEFAULT_THEME.combatCanvasHeight,
   };
 }
 

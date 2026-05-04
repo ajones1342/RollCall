@@ -79,6 +79,14 @@ export default function ThemeEditor() {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [previewMode, setPreviewMode] = useState<'character' | 'tracker'>(
+    'character'
+  );
+  const [canvasTab, setCanvasTab] = useState<'character' | 'tracker'>('character');
+  const canvasWKey: keyof Theme = canvasTab === 'character' ? 'canvasWidth' : 'combatCanvasWidth';
+  const canvasHKey: keyof Theme = canvasTab === 'character' ? 'canvasHeight' : 'combatCanvasHeight';
+  const currentCanvasW = draft[canvasWKey] as number;
+  const currentCanvasH = draft[canvasHKey] as number;
   const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -209,21 +217,43 @@ export default function ThemeEditor() {
         <div className="space-y-6">
           <Section title="Canvas">
             <p className="text-xs text-stone-500 mb-3">
-              The design size of the overlay. Sets the aspect ratio of the OBS
-              Browser Source you'll add. Default 1920×1080 fits most player
-              video tiles. Changing this on an existing theme may move
-              elements off-screen — you'll need to reposition.
+              The design size for each overlay. Sets the aspect ratio of the OBS
+              Browser Source. Character defaults to 1920×1080 (over webcam tiles);
+              Combat tracker defaults to the same but is often a vertical sidebar.
             </p>
+            <div className="inline-flex rounded border border-stone-600 overflow-hidden mb-3">
+              <button
+                onClick={() => setCanvasTab('character')}
+                className={
+                  'text-xs px-3 py-1 ' +
+                  (canvasTab === 'character'
+                    ? 'bg-purple-700 text-white'
+                    : 'bg-stone-900 text-stone-300 hover:text-stone-100')
+                }
+              >
+                Character
+              </button>
+              <button
+                onClick={() => setCanvasTab('tracker')}
+                className={
+                  'text-xs px-3 py-1 border-l border-stone-600 ' +
+                  (canvasTab === 'tracker'
+                    ? 'bg-purple-700 text-white'
+                    : 'bg-stone-900 text-stone-300 hover:text-stone-100')
+                }
+              >
+                Combat tracker
+              </button>
+            </div>
             <div className="flex flex-wrap gap-1 mb-3">
               {CANVAS_PRESETS.map((p) => {
-                const active =
-                  draft.canvasWidth === p.width && draft.canvasHeight === p.height;
+                const active = currentCanvasW === p.width && currentCanvasH === p.height;
                 return (
                   <button
                     key={p.label}
                     onClick={() => {
-                      setField('canvasWidth', p.width);
-                      setField('canvasHeight', p.height);
+                      setField(canvasWKey, p.width);
+                      setField(canvasHKey, p.height);
                     }}
                     className={
                       'text-xs px-3 py-1 rounded border ' +
@@ -242,21 +272,21 @@ export default function ThemeEditor() {
             </div>
             <SliderRow
               label="Width"
-              value={draft.canvasWidth}
+              value={currentCanvasW}
               min={400}
               max={3840}
               step={2}
               unit="px"
-              onChange={(v) => setField('canvasWidth', v)}
+              onChange={(v) => setField(canvasWKey, v)}
             />
             <SliderRow
               label="Height"
-              value={draft.canvasHeight}
+              value={currentCanvasH}
               min={400}
               max={3840}
               step={2}
               unit="px"
-              onChange={(v) => setField('canvasHeight', v)}
+              onChange={(v) => setField(canvasHKey, v)}
             />
           </Section>
 
@@ -520,7 +550,7 @@ export default function ThemeEditor() {
                 label="Horizontal"
                 value={draft.positions.trackerX}
                 min={0}
-                max={draft.canvasWidth}
+                max={draft.combatCanvasWidth}
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('trackerX', v)}
@@ -529,7 +559,7 @@ export default function ThemeEditor() {
                 label="Vertical"
                 value={draft.positions.trackerY}
                 min={0}
-                max={draft.canvasHeight}
+                max={draft.combatCanvasHeight}
                 step={2}
                 unit="px"
                 onChange={(v) => setPosition('trackerY', v)}
@@ -542,7 +572,7 @@ export default function ThemeEditor() {
                 label="Width"
                 value={draft.positions.trackerWidth}
                 min={300}
-                max={draft.canvasWidth}
+                max={draft.combatCanvasWidth}
                 step={4}
                 unit="px"
                 onChange={(v) => setPosition('trackerWidth', v)}
@@ -703,56 +733,95 @@ export default function ThemeEditor() {
 
         {/* Live preview */}
         <div className="lg:sticky lg:top-6 self-start">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs uppercase tracking-wide text-stone-400">
-              Live preview (sample character)
-            </p>
-            <button
-              onClick={() => setEditMode((v) => !v)}
-              className={
-                'text-xs px-3 py-1 rounded border ' +
-                (editMode
-                  ? 'bg-purple-700 border-purple-600 text-white'
-                  : 'bg-stone-800 border-stone-600 text-stone-300 hover:text-stone-100')
-              }
-            >
-              {editMode ? 'Editing positions' : 'Edit positions'}
-            </button>
+          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+            <div className="inline-flex rounded border border-stone-600 overflow-hidden">
+              <button
+                onClick={() => setPreviewMode('character')}
+                className={
+                  'text-xs px-3 py-1 ' +
+                  (previewMode === 'character'
+                    ? 'bg-purple-700 text-white'
+                    : 'bg-stone-800 text-stone-300 hover:text-stone-100')
+                }
+              >
+                Character
+              </button>
+              <button
+                onClick={() => setPreviewMode('tracker')}
+                className={
+                  'text-xs px-3 py-1 border-l border-stone-600 ' +
+                  (previewMode === 'tracker'
+                    ? 'bg-purple-700 text-white'
+                    : 'bg-stone-800 text-stone-300 hover:text-stone-100')
+                }
+              >
+                Combat tracker
+              </button>
+            </div>
+            {previewMode === 'character' && (
+              <button
+                onClick={() => setEditMode((v) => !v)}
+                className={
+                  'text-xs px-3 py-1 rounded border ' +
+                  (editMode
+                    ? 'bg-purple-700 border-purple-600 text-white'
+                    : 'bg-stone-800 border-stone-600 text-stone-300 hover:text-stone-100')
+                }
+              >
+                {editMode ? 'Editing positions' : 'Edit positions'}
+              </button>
+            )}
           </div>
           <div
             className="relative border border-stone-700 rounded overflow-hidden"
             style={{
-              aspectRatio: `${draft.canvasWidth} / ${draft.canvasHeight}`,
+              aspectRatio:
+                previewMode === 'tracker'
+                  ? `${draft.combatCanvasWidth} / ${draft.combatCanvasHeight}`
+                  : `${draft.canvasWidth} / ${draft.canvasHeight}`,
               background: '#374151',
             }}
           >
             <ScaleToFit
-              canvasWidth={draft.canvasWidth}
-              canvasHeight={draft.canvasHeight}
+              canvasWidth={
+                previewMode === 'tracker' ? draft.combatCanvasWidth : draft.canvasWidth
+              }
+              canvasHeight={
+                previewMode === 'tracker'
+                  ? draft.combatCanvasHeight
+                  : draft.canvasHeight
+              }
             >
-              <CharacterCard1080
-                c={SAMPLE_CHARACTER}
-                theme={draft}
-                editable={editMode}
-                onPositionChange={handleDrag}
-              />
-              <DiceToast
-                roll={SAMPLE_ROLL}
-                theme={draft}
-                forceVisible={editMode}
-              />
-              <CombatTrackerCanvas
-                theme={draft}
-                combat={SAMPLE_COMBAT}
-                characters={[SAMPLE_CHARACTER]}
-                forceVisible
-              />
+              {previewMode === 'character' ? (
+                <>
+                  <CharacterCard1080
+                    c={SAMPLE_CHARACTER}
+                    theme={draft}
+                    editable={editMode}
+                    onPositionChange={handleDrag}
+                  />
+                  <DiceToast
+                    roll={SAMPLE_ROLL}
+                    theme={draft}
+                    forceVisible={editMode}
+                  />
+                </>
+              ) : (
+                <CombatTrackerCanvas
+                  theme={draft}
+                  combat={SAMPLE_COMBAT}
+                  characters={[SAMPLE_CHARACTER]}
+                  forceVisible
+                />
+              )}
             </ScaleToFit>
           </div>
           <p className="text-xs text-stone-500 mt-2">
-            {editMode
-              ? 'Click and drag any element to reposition. Sliders update with you.'
-              : 'Preview shows a placeholder character. Real characters in your campaign inherit these settings on their overlay URL.'}
+            {previewMode === 'tracker'
+              ? 'Sample combat with three combatants (Goblin Boss, Aragorn, Goblin). Real combats inherit these settings on the /overlay/<id>/combat URL.'
+              : editMode
+                ? 'Click and drag any element to reposition. Sliders update with you.'
+                : 'Preview shows a placeholder character. Real characters in your campaign inherit these settings on their overlay URL.'}
           </p>
         </div>
       </div>
