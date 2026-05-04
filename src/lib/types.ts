@@ -232,6 +232,8 @@ export type Positions = {
   portraitX: number;
   portraitY: number;
   portraitSize: number;
+  diceX: number;
+  diceY: number;
 };
 
 export type Theme = {
@@ -286,6 +288,8 @@ export function defaultPositions(edgePadding: number = 80): Positions {
     portraitX: edgePadding,
     portraitY: 1080 - edgePadding,
     portraitSize: 200,
+    diceX: 1920 / 2,
+    diceY: 1080 / 2,
   };
 }
 
@@ -337,6 +341,8 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
       portraitX: num('portraitX') ?? def.portraitX,
       portraitY: num('portraitY') ?? def.portraitY,
       portraitSize: num('portraitSize') ?? def.portraitSize,
+      diceX: num('diceX') ?? def.diceX,
+      diceY: num('diceY') ?? def.diceY,
     };
   }
 
@@ -371,6 +377,8 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
     portraitX: def.portraitX,
     portraitY: def.portraitY,
     portraitSize: def.portraitSize,
+    diceX: def.diceX,
+    diceY: def.diceY,
   };
 }
 

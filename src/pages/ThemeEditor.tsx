@@ -15,7 +15,7 @@ import {
   type TextAlign,
   type Theme,
 } from '../lib/types';
-import { CharacterCard1080, ScaleToFit, type DraggableElement } from './Overlay';
+import { CharacterCard1080, DiceToast, ScaleToFit, type DraggableElement } from './Overlay';
 
 const SAMPLE_CHARACTER: Character = {
   id: 'preview',
@@ -46,6 +46,14 @@ const SAMPLE_CHARACTER: Character = {
     'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="%237c2d12"/><text x="100" y="138" font-size="130" font-family="serif" fill="white" text-anchor="middle">A</text></svg>',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
+};
+
+const SAMPLE_ROLL = {
+  expression: '1d20+5',
+  total: 18,
+  detail: '[13] + 5 = 18',
+  rolledAt: '2026-01-01T00:00:00.000Z',
+  label: 'Athletics',
 };
 
 type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
@@ -495,6 +503,30 @@ export default function ThemeEditor() {
               />
             </PositionGroup>
 
+            <PositionGroup label="Dice toast">
+              <SliderRow
+                label="Horizontal"
+                value={draft.positions.diceX}
+                min={0}
+                max={draft.canvasWidth}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('diceX', v)}
+              />
+              <SliderRow
+                label="Vertical"
+                value={draft.positions.diceY}
+                min={0}
+                max={draft.canvasHeight}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('diceY', v)}
+              />
+              <p className="text-xs text-stone-500 mt-1">
+                Toast is anchored by its center, so this is where the middle of the popup lands.
+              </p>
+            </PositionGroup>
+
             {draft.showPortraits && (
               <PositionGroup label="Portrait">
                 <SliderRow
@@ -648,6 +680,11 @@ export default function ThemeEditor() {
                 theme={draft}
                 editable={editMode}
                 onPositionChange={handleDrag}
+              />
+              <DiceToast
+                roll={SAMPLE_ROLL}
+                theme={draft}
+                forceVisible={editMode}
               />
             </ScaleToFit>
           </div>

@@ -106,7 +106,7 @@ export default function Overlay() {
     return (
       <ScaleToFit canvasWidth={theme.canvasWidth} canvasHeight={theme.canvasHeight}>
         <CharacterCard1080 c={c} theme={theme} activeTurn={isActiveFor(c)} />
-        <DiceToast roll={lastRoll} />
+        <DiceToast roll={lastRoll} theme={theme} />
       </ScaleToFit>
     );
   }
@@ -229,28 +229,44 @@ function ScaleToFitInner({
   );
 }
 
-function DiceToast({ roll }: { roll: DiceRoll | undefined }) {
+export function DiceToast({
+  roll,
+  theme,
+  forceVisible = false,
+}: {
+  roll: DiceRoll | undefined;
+  theme: Theme;
+  forceVisible?: boolean;
+}) {
   const [visible, setVisible] = useState(false);
   const seenAtRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (forceVisible) return;
     if (!roll) return;
     if (roll.rolledAt === seenAtRef.current) return;
     seenAtRef.current = roll.rolledAt;
     setVisible(true);
     const t = window.setTimeout(() => setVisible(false), 4500);
     return () => window.clearTimeout(t);
-  }, [roll?.rolledAt]);
+  }, [roll?.rolledAt, forceVisible]);
 
-  if (!roll || !visible) return null;
+  const show = forceVisible || visible;
+  if (!roll || !show) return null;
+
+  // Position is anchor-by-center: (diceX, diceY) in bottom-left coords is
+  // where the center of the toast lands. translate(-50%, -50%) does the
+  // centering on that point.
+  const top = theme.canvasHeight - theme.positions.diceY;
+  const left = theme.positions.diceX;
 
   return (
     <div
       style={{
         position: 'absolute',
-        top: 60,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        top,
+        left,
+        transform: 'translate(-50%, -50%)',
         background: 'rgba(15, 23, 42, 0.92)',
         border: '3px solid rgba(168, 85, 247, 0.9)',
         borderRadius: 16,
@@ -258,16 +274,16 @@ function DiceToast({ roll }: { roll: DiceRoll | undefined }) {
         color: '#f5f5f4',
         fontFamily: 'Cinzel, serif',
         textAlign: 'center',
-        animation: 'rc-dice-fade 4.5s ease-out forwards',
+        animation: forceVisible ? undefined : 'rc-dice-fade 4.5s ease-out forwards',
         boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
         minWidth: 360,
       }}
     >
       <style>{`
         @keyframes rc-dice-fade {
-          0% { opacity: 0; transform: translate(-50%, -20px); }
-          8%, 85% { opacity: 1; transform: translate(-50%, 0); }
-          100% { opacity: 0; transform: translate(-50%, -10px); }
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+          8%, 85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
         }
       `}</style>
       {roll.label && (
