@@ -16,6 +16,7 @@ import {
   type Theme,
 } from '../lib/types';
 import { CharacterCard1080, DiceToast, ScaleToFit, type DraggableElement } from './Overlay';
+import { CombatTrackerCanvas } from './CombatOverlay';
 
 const SAMPLE_CHARACTER: Character = {
   id: 'preview',
@@ -54,6 +55,17 @@ const SAMPLE_ROLL = {
   detail: '[13] + 5 = 18',
   rolledAt: '2026-01-01T00:00:00.000Z',
   label: 'Athletics',
+};
+
+const SAMPLE_COMBAT = {
+  active: true,
+  round: 3,
+  activeIndex: 1,
+  combatants: [
+    { id: 'sample-1', characterId: null, name: 'Goblin Boss', initiative: 22 },
+    { id: 'sample-2', characterId: SAMPLE_CHARACTER.id, name: 'Aragorn', initiative: 18 },
+    { id: 'sample-3', characterId: null, name: 'Goblin', initiative: 12 },
+  ],
 };
 
 type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
@@ -503,6 +515,49 @@ export default function ThemeEditor() {
               />
             </PositionGroup>
 
+            <PositionGroup label="Combat tracker">
+              <SliderRow
+                label="Horizontal"
+                value={draft.positions.trackerX}
+                min={0}
+                max={draft.canvasWidth}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('trackerX', v)}
+              />
+              <SliderRow
+                label="Vertical"
+                value={draft.positions.trackerY}
+                min={0}
+                max={draft.canvasHeight}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('trackerY', v)}
+              />
+              <AnchorRow
+                value={draft.positions.trackerAnchor}
+                onChange={(v) => setPosition('trackerAnchor', v)}
+              />
+              <SliderRow
+                label="Width"
+                value={draft.positions.trackerWidth}
+                min={300}
+                max={draft.canvasWidth}
+                step={4}
+                unit="px"
+                onChange={(v) => setPosition('trackerWidth', v)}
+              />
+              <SliderRow
+                label="Row gap"
+                value={draft.positions.trackerRowGap}
+                min={0}
+                max={80}
+                step={1}
+                unit="px"
+                onChange={(v) => setPosition('trackerRowGap', v)}
+              />
+            </PositionGroup>
+
             <PositionGroup label="Dice toast">
               <SliderRow
                 label="Horizontal"
@@ -685,6 +740,12 @@ export default function ThemeEditor() {
                 roll={SAMPLE_ROLL}
                 theme={draft}
                 forceVisible={editMode}
+              />
+              <CombatTrackerCanvas
+                theme={draft}
+                combat={SAMPLE_COMBAT}
+                characters={[SAMPLE_CHARACTER]}
+                forceVisible
               />
             </ScaleToFit>
           </div>

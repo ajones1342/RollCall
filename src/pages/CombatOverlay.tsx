@@ -12,6 +12,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import {
   DEFAULT_THEME,
+  anchorCss,
   fillStyle,
   mergeTheme,
   type CampaignSettings,
@@ -95,36 +96,44 @@ export default function CombatOverlay() {
   );
 }
 
-function CombatTrackerCanvas({
+export function CombatTrackerCanvas({
   theme,
   combat,
   characters,
+  forceVisible = false,
 }: {
   theme: Theme;
   combat: CombatState | undefined;
   characters: Character[];
+  forceVisible?: boolean;
 }) {
   const fill = fillStyle(theme);
   const sz = theme.fontSizes;
+  const pos = theme.positions;
   const charById = new Map(characters.map((c) => [c.id, c]));
 
   // Don't render anything when no combat is active — keeps the OBS source
-  // invisible during downtime.
-  if (!combat?.active) return null;
+  // invisible during downtime. Editor preview overrides via forceVisible.
+  if (!forceVisible && !combat?.active) return null;
+  if (!combat) return null;
 
   const cardFilter =
     `drop-shadow(0 4px 8px rgba(0,0,0,${0.9 * theme.shadowStrength})) ` +
     `drop-shadow(0 0 4px rgba(0,0,0,${0.85 * theme.shadowStrength}))`;
 
-  // The list autosizes to the content. We anchor at top-left of the canvas
-  // and let it grow downward. The GM positions the OBS browser source to
-  // taste; the canvas just provides a known scaling context.
+  // The container anchors per theme.positions.trackerAnchor at (trackerX,
+  // trackerY) bottom-left coords. Width is fixed; height grows with content.
   return (
     <div
       style={{
-        position: 'absolute',
-        inset: 0,
-        padding: 60,
+        ...anchorCss(
+          pos.trackerAnchor,
+          pos.trackerX,
+          pos.trackerY,
+          theme.canvasWidth,
+          theme.canvasHeight
+        ),
+        width: pos.trackerWidth,
         fontFamily: `'${theme.fontFamily}', serif`,
         filter: cardFilter,
         display: 'flex',
@@ -144,7 +153,9 @@ function CombatTrackerCanvas({
         ROUND {combat.round}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <div
+        style={{ display: 'flex', flexDirection: 'column', gap: pos.trackerRowGap }}
+      >
         {combat.combatants.map((cm, i) => {
           const isActive = i === combat.activeIndex;
           const ch = cm.characterId ? charById.get(cm.characterId) : null;

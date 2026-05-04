@@ -234,6 +234,11 @@ export type Positions = {
   portraitSize: number;
   diceX: number;
   diceY: number;
+  trackerX: number;
+  trackerY: number;
+  trackerAnchor: Anchor;
+  trackerWidth: number;
+  trackerRowGap: number;
 };
 
 export type Theme = {
@@ -290,6 +295,11 @@ export function defaultPositions(edgePadding: number = 80): Positions {
     portraitSize: 200,
     diceX: 1920 / 2,
     diceY: 1080 / 2,
+    trackerX: edgePadding,
+    trackerY: 1080 - edgePadding,
+    trackerAnchor: 'top-left',
+    trackerWidth: 1000,
+    trackerRowGap: 18,
   };
 }
 
@@ -343,6 +353,11 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
       portraitSize: num('portraitSize') ?? def.portraitSize,
       diceX: num('diceX') ?? def.diceX,
       diceY: num('diceY') ?? def.diceY,
+      trackerX: num('trackerX') ?? def.trackerX,
+      trackerY: num('trackerY') ?? def.trackerY,
+      trackerAnchor: anchor('trackerAnchor') ?? def.trackerAnchor,
+      trackerWidth: num('trackerWidth') ?? def.trackerWidth,
+      trackerRowGap: num('trackerRowGap') ?? def.trackerRowGap,
     };
   }
 
@@ -379,6 +394,11 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
     portraitSize: def.portraitSize,
     diceX: def.diceX,
     diceY: def.diceY,
+    trackerX: def.trackerX,
+    trackerY: def.trackerY,
+    trackerAnchor: def.trackerAnchor,
+    trackerWidth: def.trackerWidth,
+    trackerRowGap: def.trackerRowGap,
   };
 }
 
