@@ -6,6 +6,7 @@ import ThemeEditor from './pages/ThemeEditor';
 import JoinCampaign from './pages/JoinCampaign';
 import PlayerEdit from './pages/PlayerEdit';
 import Overlay from './pages/Overlay';
+import CombatOverlay from './pages/CombatOverlay';
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/play/:campaignId" element={<PlayerEdit />} />
         <Route path="/play/:campaignId/:characterId" element={<PlayerEdit />} />
         <Route path="/overlay/:campaignId" element={<Overlay />} />
+        <Route path="/overlay/:campaignId/combat" element={<CombatOverlay />} />
         <Route path="/overlay/:campaignId/:characterId" element={<Overlay />} />
       </Routes>
     </BrowserRouter>

@@ -336,6 +336,7 @@ export default function CampaignManage() {
   const origin = window.location.origin;
   const joinUrl = `${origin}/join/${campaign.id}`;
   const overlayUrl = `${origin}/overlay/${campaign.id}`;
+  const combatOverlayUrl = `${origin}/overlay/${campaign.id}/combat`;
 
   return (
     <div className="min-h-screen p-8 max-w-4xl mx-auto">
@@ -366,6 +367,13 @@ export default function CampaignManage() {
           copied={copied === 'overlay'}
           onCopy={() => copy('overlay', overlayUrl)}
           hint="Useful for previewing layouts. For OBS, use the per-character URLs below — one Browser Source per player."
+        />
+        <UrlRow
+          label="Combat Tracker URL"
+          value={combatOverlayUrl}
+          copied={copied === 'combat-overlay'}
+          onCopy={() => copy('combat-overlay', combatOverlayUrl)}
+          hint="Add as a Browser Source in OBS. Renders the round + initiative order + per-PC HP / inspiration / conditions. Stays invisible when no combat is active."
         />
       </section>
 
