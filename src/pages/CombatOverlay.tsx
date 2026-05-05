@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase';
 import {
   DEFAULT_THEME,
   anchorCss,
-  fillStyle,
+  elementFillStyle,
   mergeTheme,
   type CampaignSettings,
   type Character,
@@ -110,10 +110,14 @@ export function CombatTrackerCanvas({
   characters: Character[];
   forceVisible?: boolean;
 }) {
-  const fill = fillStyle(theme);
   const sz = theme.fontSizes;
   const pos = theme.positions;
   const charById = new Map(characters.map((c) => [c.id, c]));
+  const roundFill = elementFillStyle(theme, 'trackerRound');
+  const initFill = elementFillStyle(theme, 'trackerInit');
+  const nameFill = elementFillStyle(theme, 'trackerName');
+  const hpFill = elementFillStyle(theme, 'trackerHp');
+  const condFill = elementFillStyle(theme, 'trackerConditions');
 
   // Don't render anything when no combat is active — keeps the OBS source
   // invisible during downtime. Editor preview overrides via forceVisible.
@@ -146,7 +150,7 @@ export function CombatTrackerCanvas({
     >
       <div
         style={{
-          ...fill,
+          ...roundFill,
           fontSize: Math.max(48, sz.name * 0.55),
           fontWeight: 700,
           letterSpacing: '0.12em',
@@ -169,8 +173,11 @@ export function CombatTrackerCanvas({
               initiative={cm.initiative}
               name={cm.name}
               character={ch ?? null}
-              fill={fill}
               theme={theme}
+              initFill={initFill}
+              nameFill={nameFill}
+              hpFill={hpFill}
+              condFill={condFill}
             />
           );
         })}
@@ -184,15 +191,21 @@ function CombatRow({
   initiative,
   name,
   character,
-  fill,
   theme,
+  initFill,
+  nameFill,
+  hpFill,
+  condFill,
 }: {
   active: boolean;
   initiative: number;
   name: string;
   character: Character | null;
-  fill: React.CSSProperties;
   theme: Theme;
+  initFill: React.CSSProperties;
+  nameFill: React.CSSProperties;
+  hpFill: React.CSSProperties;
+  condFill: React.CSSProperties;
 }) {
   const sz = theme.fontSizes;
   const hp = character ? `${character.current_hp}/${character.max_hp}` : null;
@@ -216,7 +229,7 @@ function CombatRow({
     >
       <span
         style={{
-          ...fill,
+          ...initFill,
           fontSize: Math.round(sz.attributeLabel * 0.9),
           width: 36,
           textAlign: 'center',
@@ -227,7 +240,7 @@ function CombatRow({
       </span>
       <span
         style={{
-          ...fill,
+          ...initFill,
           fontSize: Math.round(sz.attributeValue * 0.7),
           fontWeight: 700,
           minWidth: 80,
@@ -239,7 +252,7 @@ function CombatRow({
       </span>
       <span
         style={{
-          ...fill,
+          ...nameFill,
           fontSize: Math.round(sz.name * 0.5),
           fontWeight: 600,
           letterSpacing: '0.04em',
@@ -256,7 +269,7 @@ function CombatRow({
       {hp && (
         <span
           style={{
-            ...fill,
+            ...hpFill,
             fontSize: Math.round(sz.hpValue * 0.55),
             fontWeight: 700,
             letterSpacing: '0.04em',
@@ -275,7 +288,7 @@ function CombatRow({
       {conditions.length > 0 && (
         <span
           style={{
-            ...fill,
+            ...condFill,
             fontSize: Math.round(sz.conditions * 0.8),
             fontStyle: 'italic',
             opacity: 0.85,

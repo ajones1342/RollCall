@@ -8,7 +8,7 @@ import {
   activeCombatant,
   alignToFlex,
   anchorCss,
-  fillStyle,
+  elementFillStyle,
   mergeTheme,
   normalizeHiddenFields,
   type CampaignSettings,
@@ -287,11 +287,25 @@ export function DiceToast({
         }
       `}</style>
       {roll.label && (
-        <div style={{ fontSize: 32, opacity: 0.85, letterSpacing: '0.06em' }}>
+        <div
+          style={{
+            color: theme.elementColors?.diceLabel ?? '#f5f5f4',
+            fontSize: 32,
+            opacity: 0.85,
+            letterSpacing: '0.06em',
+          }}
+        >
           {roll.label}
         </div>
       )}
-      <div style={{ fontSize: 36, opacity: 0.7, letterSpacing: '0.08em' }}>
+      <div
+        style={{
+          color: theme.elementColors?.diceExpression ?? '#f5f5f4',
+          fontSize: 36,
+          opacity: 0.7,
+          letterSpacing: '0.08em',
+        }}
+      >
         {roll.expression}
       </div>
       <div
@@ -299,13 +313,20 @@ export function DiceToast({
           fontSize: 88,
           fontWeight: 700,
           lineHeight: 1.1,
-          color: '#a855f7',
+          color: theme.elementColors?.diceTotal ?? '#a855f7',
           letterSpacing: '0.04em',
         }}
       >
         {roll.total}
       </div>
-      <div style={{ fontSize: 24, opacity: 0.7, fontFamily: 'monospace' }}>
+      <div
+        style={{
+          color: theme.elementColors?.diceDetail ?? '#f5f5f4',
+          fontSize: 24,
+          opacity: 0.7,
+          fontFamily: 'monospace',
+        }}
+      >
         {roll.detail}
       </div>
     </div>
@@ -362,9 +383,16 @@ export function CharacterCard1080({
   activeTurn?: boolean;
   onPositionChange?: (element: DraggableElement, x: number, y: number) => void;
 }) {
-  const fill = fillStyle(theme);
   const pos = theme.positions;
   const sz = theme.fontSizes;
+  const nameFill = elementFillStyle(theme, 'name');
+  const subtitleFill = elementFillStyle(theme, 'subtitle');
+  const conditionsFill = elementFillStyle(theme, 'conditions');
+  const hpLabelFill = elementFillStyle(theme, 'hpLabel');
+  const hpValueFill = elementFillStyle(theme, 'hpValue');
+  const attrLabelFill = elementFillStyle(theme, 'attributeLabel');
+  const attrValueFill = elementFillStyle(theme, 'attributeValue');
+  const streamerFill = elementFillStyle(theme, 'streamerName');
   const cardRef = useRef<HTMLDivElement>(null);
 
   // HP flash animation: detect current_hp changes and apply a brief glow.
@@ -491,7 +519,7 @@ export function CharacterCard1080({
           {showName && (
             <div
               style={{
-                ...fill,
+                ...nameFill,
                 fontSize: sz.name,
                 fontWeight: 700,
                 lineHeight: 1,
@@ -505,7 +533,7 @@ export function CharacterCard1080({
           {showSubtitle && (
             <div
               style={{
-                ...fill,
+                ...subtitleFill,
                 fontSize: sz.subtitle,
                 marginTop: showName ? 18 : 0,
                 letterSpacing: '0.1em',
@@ -518,7 +546,7 @@ export function CharacterCard1080({
           {showConditions && (
             <div
               style={{
-                ...fill,
+                ...conditionsFill,
                 fontSize: sz.conditions,
                 marginTop: 14,
                 letterSpacing: '0.1em',
@@ -551,7 +579,7 @@ export function CharacterCard1080({
             <div key={k} style={{ display: 'flex', alignItems: 'baseline', gap: 24 }}>
               <span
                 style={{
-                  ...fill,
+                  ...attrLabelFill,
                   fontSize: sz.attributeLabel,
                   opacity: 0.85,
                   letterSpacing: '0.12em',
@@ -561,7 +589,7 @@ export function CharacterCard1080({
               </span>
               <span
                 style={{
-                  ...fill,
+                  ...attrValueFill,
                   fontSize: sz.attributeValue,
                   fontWeight: 700,
                   minWidth: 130,
@@ -594,7 +622,7 @@ export function CharacterCard1080({
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
             <span
               style={{
-                ...fill,
+                ...hpLabelFill,
                 fontSize: sz.hpLabel,
                 opacity: 0.85,
                 letterSpacing: '0.12em',
@@ -605,7 +633,7 @@ export function CharacterCard1080({
             <span
               className={hpFlash ? `rc-hp-${hpFlash}` : undefined}
               style={{
-                ...fill,
+                ...hpValueFill,
                 fontSize: sz.hpValue,
                 fontWeight: 700,
                 letterSpacing: '0.04em',
@@ -617,7 +645,7 @@ export function CharacterCard1080({
             {tempHp > 0 && (
               <span
                 style={{
-                  ...fill,
+                  ...hpLabelFill,
                   fontSize: sz.hpLabel,
                   opacity: 0.85,
                   letterSpacing: '0.04em',
@@ -651,7 +679,7 @@ export function CharacterCard1080({
         >
           <span
             style={{
-              ...fill,
+              ...streamerFill,
               fontSize: sz.streamerName,
               letterSpacing: '0.12em',
               opacity: 0.92,

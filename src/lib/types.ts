@@ -241,6 +241,30 @@ export type Positions = {
   trackerRowGap: number;
 };
 
+export type ElementColorKey =
+  // character card
+  | 'name'
+  | 'subtitle'
+  | 'conditions'
+  | 'hpLabel'
+  | 'hpValue'
+  | 'attributeLabel'
+  | 'attributeValue'
+  | 'streamerName'
+  // combat tracker
+  | 'trackerRound'
+  | 'trackerInit'
+  | 'trackerName'
+  | 'trackerHp'
+  | 'trackerConditions'
+  // dice toast
+  | 'diceLabel'
+  | 'diceExpression'
+  | 'diceTotal'
+  | 'diceDetail';
+
+export type ElementColors = Partial<Record<ElementColorKey, string>>;
+
 export type Theme = {
   fontFamily: string;
   fillMode: FillMode;
@@ -261,6 +285,7 @@ export type Theme = {
   canvasHeight: number;
   combatCanvasWidth: number;
   combatCanvasHeight: number;
+  elementColors: ElementColors;
 };
 
 export const CANVAS_PRESETS: { label: string; width: number; height: number }[] = [
@@ -414,6 +439,7 @@ export const DEFAULT_THEME: Theme = {
   canvasHeight: 1080,
   combatCanvasWidth: 1920,
   combatCanvasHeight: 1080,
+  elementColors: {},
   gradientFrom: '#02fdfc',
   gradientTo: '#c22cff',
   gradientAngle: 85,
@@ -468,6 +494,7 @@ export function mergeTheme(partial: Partial<Theme> | null | undefined): Theme {
       partial.combatCanvasHeight ??
       partial.canvasHeight ??
       DEFAULT_THEME.combatCanvasHeight,
+    elementColors: { ...(partial.elementColors ?? {}) },
   };
 }
 
@@ -520,6 +547,18 @@ export function alignToFlex(align: TextAlign): 'flex-start' | 'center' | 'flex-e
   if (align === 'left') return 'flex-start';
   if (align === 'right') return 'flex-end';
   return 'center';
+}
+
+// Per-element style: if the GM has set an override color for this element
+// key, return a flat solid color. Otherwise fall back to the theme's
+// global fill (gradient/solid/textured). Element overrides are always
+// solid colors — gradient-per-element is overkill for v1.
+export function elementFillStyle(theme: Theme, key: ElementColorKey): CSSProperties {
+  const override = theme.elementColors?.[key];
+  if (override && override.length > 0) {
+    return { color: override };
+  }
+  return fillStyle(theme);
 }
 
 // Inline style fragment to apply the theme's fill (solid color, gradient, or

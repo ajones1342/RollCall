@@ -11,6 +11,7 @@ import {
   type Anchor,
   type Campaign,
   type Character,
+  type ElementColorKey,
   type FillMode,
   type TextAlign,
   type Theme,
@@ -165,6 +166,15 @@ export default function ThemeEditor() {
       ...d,
       positions: { ...d.positions, [key]: value },
     }));
+  };
+
+  const setElementColor = (key: ElementColorKey, value: string | undefined) => {
+    setDraft((d) => {
+      const ec = { ...(d.elementColors ?? {}) };
+      if (!value) delete ec[key];
+      else ec[key] = value;
+      return { ...d, elementColors: ec };
+    });
   };
 
   const handleDrag = (element: DraggableElement, x: number, y: number) => {
@@ -396,6 +406,107 @@ export default function ThemeEditor() {
                 />
               </div>
             )}
+          </Section>
+
+          <Section title="Element Colors">
+            <p className="text-xs text-stone-500 mb-3">
+              Override the global text fill per element. Leave a row empty to inherit
+              the gradient/solid/textured fill above. Overrides are always solid colors.
+            </p>
+
+            <ColorGroup label="Character Card">
+              <ElementColorRow
+                label="Name"
+                value={draft.elementColors?.name}
+                onChange={(v) => setElementColor('name', v)}
+              />
+              <ElementColorRow
+                label="Race / Class"
+                value={draft.elementColors?.subtitle}
+                onChange={(v) => setElementColor('subtitle', v)}
+              />
+              <ElementColorRow
+                label="Conditions"
+                value={draft.elementColors?.conditions}
+                onChange={(v) => setElementColor('conditions', v)}
+              />
+              <ElementColorRow
+                label="HP label"
+                value={draft.elementColors?.hpLabel}
+                onChange={(v) => setElementColor('hpLabel', v)}
+              />
+              <ElementColorRow
+                label="HP value"
+                value={draft.elementColors?.hpValue}
+                onChange={(v) => setElementColor('hpValue', v)}
+              />
+              <ElementColorRow
+                label="Attribute label"
+                value={draft.elementColors?.attributeLabel}
+                onChange={(v) => setElementColor('attributeLabel', v)}
+              />
+              <ElementColorRow
+                label="Attribute value"
+                value={draft.elementColors?.attributeValue}
+                onChange={(v) => setElementColor('attributeValue', v)}
+              />
+              <ElementColorRow
+                label="Streamer name"
+                value={draft.elementColors?.streamerName}
+                onChange={(v) => setElementColor('streamerName', v)}
+              />
+            </ColorGroup>
+
+            <ColorGroup label="Combat Tracker">
+              <ElementColorRow
+                label="Round header"
+                value={draft.elementColors?.trackerRound}
+                onChange={(v) => setElementColor('trackerRound', v)}
+              />
+              <ElementColorRow
+                label="Initiative"
+                value={draft.elementColors?.trackerInit}
+                onChange={(v) => setElementColor('trackerInit', v)}
+              />
+              <ElementColorRow
+                label="Combatant name"
+                value={draft.elementColors?.trackerName}
+                onChange={(v) => setElementColor('trackerName', v)}
+              />
+              <ElementColorRow
+                label="HP"
+                value={draft.elementColors?.trackerHp}
+                onChange={(v) => setElementColor('trackerHp', v)}
+              />
+              <ElementColorRow
+                label="Conditions"
+                value={draft.elementColors?.trackerConditions}
+                onChange={(v) => setElementColor('trackerConditions', v)}
+              />
+            </ColorGroup>
+
+            <ColorGroup label="Dice Toast">
+              <ElementColorRow
+                label="Label"
+                value={draft.elementColors?.diceLabel}
+                onChange={(v) => setElementColor('diceLabel', v)}
+              />
+              <ElementColorRow
+                label="Expression"
+                value={draft.elementColors?.diceExpression}
+                onChange={(v) => setElementColor('diceExpression', v)}
+              />
+              <ElementColorRow
+                label="Total"
+                value={draft.elementColors?.diceTotal}
+                onChange={(v) => setElementColor('diceTotal', v)}
+              />
+              <ElementColorRow
+                label="Detail"
+                value={draft.elementColors?.diceDetail}
+                onChange={(v) => setElementColor('diceDetail', v)}
+              />
+            </ColorGroup>
           </Section>
 
           <Section title="Shadow">
@@ -849,6 +960,50 @@ function Section(props: { title: string; children: React.ReactNode }) {
         {props.children}
       </div>
     </section>
+  );
+}
+
+function ColorGroup(props: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="border-t border-stone-700 first:border-t-0 pt-3 first:pt-0 mt-3 first:mt-0">
+      <div className="text-xs uppercase tracking-wide text-stone-400 mb-2">
+        {props.label}
+      </div>
+      <div className="space-y-1">{props.children}</div>
+    </div>
+  );
+}
+
+function ElementColorRow(props: {
+  label: string;
+  value: string | undefined;
+  onChange: (v: string | undefined) => void;
+}) {
+  const set = props.value !== undefined && props.value !== '';
+  return (
+    <label className="flex items-center gap-3">
+      <span className="text-sm text-stone-400 w-32">{props.label}</span>
+      <input
+        type="color"
+        value={set ? props.value : '#ffffff'}
+        onChange={(e) => props.onChange(e.target.value)}
+        className="w-10 h-8 rounded border border-stone-600 bg-stone-900"
+      />
+      <input
+        type="text"
+        value={set ? props.value : ''}
+        onChange={(e) => props.onChange(e.target.value || undefined)}
+        placeholder="inherit"
+        className="input flex-1 font-mono text-xs"
+      />
+      <button
+        onClick={() => props.onChange(undefined)}
+        disabled={!set}
+        className="text-xs px-2 py-1 text-stone-400 hover:text-stone-200 disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        Clear
+      </button>
+    </label>
   );
 }
 
