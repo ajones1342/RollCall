@@ -4,10 +4,12 @@ import { supabase } from '../lib/supabase';
 import { useSession } from '../hooks/useSession';
 import type { Campaign } from '../lib/types';
 
+type CampaignRow = Campaign & { _role: 'owner' | 'co-gm' };
+
 export default function GMDashboard() {
   const { session, loading } = useSession();
   const navigate = useNavigate();
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [newName, setNewName] = useState('');
   const [working, setWorking] = useState(false);
 
@@ -17,12 +19,40 @@ export default function GMDashboard() {
 
   useEffect(() => {
     if (!session) return;
-    supabase
-      .from('campaigns')
-      .select('*')
-      .eq('owner_id', session.user.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => setCampaigns((data as Campaign[]) ?? []));
+    (async () => {
+      const [ownedRes, coGmRes] = await Promise.all([
+        supabase
+          .from('campaigns')
+          .select('*')
+          .eq('owner_id', session.user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('campaign_co_gms')
+          .select('campaigns(*)')
+          .eq('user_id', session.user.id),
+      ]);
+      const owned = ((ownedRes.data ?? []) as Campaign[]).map(
+        (c): CampaignRow => ({ ...c, _role: 'owner' })
+      );
+      // Supabase typings the embedded relation as an array (since it doesn't
+      // know there's a single FK), but the response is a single object. Cast
+      // through unknown to dodge the strict comparison.
+      const coGm = ((coGmRes.data ?? []) as unknown as {
+        campaigns: Campaign | null;
+      }[])
+        .map((row) => row.campaigns)
+        .filter((c): c is Campaign => Boolean(c))
+        .map((c): CampaignRow => ({ ...c, _role: 'co-gm' }));
+      // Dedupe in case a user is somehow both (shouldn't happen, but safe)
+      const seen = new Set<string>();
+      const merged: CampaignRow[] = [];
+      for (const row of [...owned, ...coGm]) {
+        if (seen.has(row.id)) continue;
+        seen.add(row.id);
+        merged.push(row);
+      }
+      setCampaigns(merged);
+    })();
   }, [session]);
 
   const createCampaign = async () => {
@@ -87,9 +117,14 @@ export default function GMDashboard() {
               <li key={c.id}>
                 <Link
                   to={`/gm/${c.id}`}
-                  className="block bg-stone-800 hover:bg-stone-700 p-4 rounded border border-stone-700"
+                  className="flex items-center justify-between gap-3 bg-stone-800 hover:bg-stone-700 p-4 rounded border border-stone-700"
                 >
                   <span className="text-xl">{c.name}</span>
+                  {c._role === 'co-gm' && (
+                    <span className="text-xs uppercase tracking-wide text-purple-400">
+                      Co-GM
+                    </span>
+                  )}
                 </Link>
               </li>
             ))}

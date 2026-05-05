@@ -4,6 +4,7 @@ import GMDashboard from './pages/GMDashboard';
 import CampaignManage from './pages/CampaignManage';
 import ThemeEditor from './pages/ThemeEditor';
 import JoinCampaign from './pages/JoinCampaign';
+import CoGmJoin from './pages/CoGmJoin';
 import PlayerEdit from './pages/PlayerEdit';
 import Overlay from './pages/Overlay';
 import CombatOverlay from './pages/CombatOverlay';
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/gm/:campaignId" element={<CampaignManage />} />
         <Route path="/gm/:campaignId/theme" element={<ThemeEditor />} />
         <Route path="/join/:campaignId" element={<JoinCampaign />} />
+        <Route path="/co-gm-join/:campaignId" element={<CoGmJoin />} />
         <Route path="/play/:campaignId" element={<PlayerEdit />} />
         <Route path="/play/:campaignId/:characterId" element={<PlayerEdit />} />
         <Route path="/overlay/:campaignId" element={<Overlay />} />

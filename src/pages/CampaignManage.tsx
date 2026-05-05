@@ -45,6 +45,9 @@ export default function CampaignManage() {
     scopes: string[];
   } | null>(null);
   const [broadcasterFlash, setBroadcasterFlash] = useState<string | null>(null);
+  const [coGms, setCoGms] = useState<
+    { user_id: string; twitch_display_name: string | null; invited_at: string }[]
+  >([]);
 
   // Require an 8px drag distance before activating — prevents click-to-edit
   // from accidentally triggering a drag.
@@ -74,6 +77,7 @@ export default function CampaignManage() {
       .then(({ data }) => setVttToken((data as { token: string } | null)?.token ?? null));
 
     refreshBroadcaster();
+    refreshCoGms();
 
     // If we just came back from the Twitch OAuth callback, surface a brief
     // success flash and strip the query param.
@@ -237,6 +241,46 @@ export default function CampaignManage() {
   }, [campaign, broadcaster]);
   // ─── /Twitch alert triggers ───────────────────────────────────
 
+  const refreshCoGms = () => {
+    if (!campaignId) return;
+    supabase
+      .from('campaign_co_gms')
+      .select('user_id, twitch_display_name, invited_at')
+      .eq('campaign_id', campaignId)
+      .order('invited_at', { ascending: true })
+      .then(({ data }) => setCoGms((data as typeof coGms) ?? []));
+  };
+
+  const removeCoGm = async (userId: string) => {
+    if (!campaign) return;
+    if (!confirm('Remove this co-GM?')) return;
+    const { error } = await supabase
+      .from('campaign_co_gms')
+      .delete()
+      .eq('campaign_id', campaign.id)
+      .eq('user_id', userId);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    setCoGms((list) => list.filter((g) => g.user_id !== userId));
+  };
+
+  const leaveCampaign = async () => {
+    if (!campaign || !session) return;
+    if (!confirm('Leave this campaign as co-GM?')) return;
+    const { error } = await supabase
+      .from('campaign_co_gms')
+      .delete()
+      .eq('campaign_id', campaign.id)
+      .eq('user_id', session.user.id);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    navigate('/gm', { replace: true });
+  };
+
   const refreshBroadcaster = () => {
     if (!campaignId) return;
     supabase
@@ -333,10 +377,12 @@ export default function CampaignManage() {
 
   if (loading || !campaign) return <div className="p-8">Loading…</div>;
 
+  const isOwner = Boolean(session && campaign.owner_id === session.user.id);
   const origin = window.location.origin;
   const joinUrl = `${origin}/join/${campaign.id}`;
   const overlayUrl = `${origin}/overlay/${campaign.id}`;
   const combatOverlayUrl = `${origin}/overlay/${campaign.id}/combat`;
+  const coGmJoinUrl = `${origin}/co-gm-join/${campaign.id}`;
 
   return (
     <div className="min-h-screen p-8 max-w-4xl mx-auto">
@@ -380,14 +426,15 @@ export default function CampaignManage() {
       <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
         <div className="flex justify-between items-center mb-2 gap-2 flex-wrap">
           <h2 className="text-xl">Broadcast Channel</h2>
-          {broadcaster ? (
+          {isOwner && broadcaster && (
             <button
               onClick={disconnectBroadcaster}
               className="text-xs px-3 py-1 bg-stone-700 hover:bg-red-700 rounded"
             >
               Disconnect
             </button>
-          ) : (
+          )}
+          {isOwner && !broadcaster && (
             <button
               onClick={connectBroadcaster}
               className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded"
@@ -405,13 +452,83 @@ export default function CampaignManage() {
           </p>
         ) : (
           <p className="text-sm text-stone-500">
-            No broadcast channel linked. Connect a Twitch account to use chat
-            posting and other broadcast-side features. The broadcaster account
-            can be different from your GM sign-in.
+            {isOwner
+              ? 'No broadcast channel linked. Connect a Twitch account to use chat posting and other broadcast-side features. The broadcaster account can be different from your GM sign-in.'
+              : 'No broadcast channel linked. Only the campaign owner can connect one.'}
           </p>
         )}
         {broadcasterFlash && (
           <p className="text-xs text-emerald-400 mt-2">{broadcasterFlash}</p>
+        )}
+      </section>
+
+      <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
+        <div className="flex justify-between items-center mb-2 gap-2 flex-wrap">
+          <h2 className="text-xl">Co-GMs</h2>
+          {!isOwner && (
+            <button
+              onClick={leaveCampaign}
+              className="text-xs px-3 py-1 bg-stone-700 hover:bg-red-700 rounded"
+            >
+              Leave campaign
+            </button>
+          )}
+        </div>
+        {isOwner ? (
+          <>
+            <p className="text-xs text-stone-500 mb-3">
+              Share this link to grant another Twitch user co-GM access. They'll
+              be able to edit characters, run combat, post to chat, and start
+              polls — but can't connect/disconnect the broadcast channel,
+              regenerate the VTT token, or delete the campaign.
+            </p>
+            <div className="flex items-center gap-2 mb-3">
+              <code className="text-xs text-stone-300 bg-stone-900 px-2 py-1 rounded flex-1 truncate">
+                {coGmJoinUrl}
+              </code>
+              <button
+                onClick={() => copy('co-gm-invite', coGmJoinUrl)}
+                className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded whitespace-nowrap"
+              >
+                {copied === 'co-gm-invite' ? 'Copied!' : 'Copy invite link'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-stone-500 mb-3">
+            You're a co-GM on this campaign. The owner manages who else has
+            co-GM access.
+          </p>
+        )}
+        {coGms.length === 0 ? (
+          <p className="text-sm text-stone-500">No co-GMs yet.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {coGms.map((g) => (
+              <li
+                key={g.user_id}
+                className="flex items-center justify-between gap-2 px-3 py-2 rounded bg-stone-900 border border-stone-700"
+              >
+                <span className="text-stone-200">
+                  {g.twitch_display_name ? (
+                    <>
+                      <span className="text-purple-400">@{g.twitch_display_name}</span>
+                    </>
+                  ) : (
+                    <span className="text-stone-500 italic">unknown user</span>
+                  )}
+                </span>
+                {isOwner && (
+                  <button
+                    onClick={() => removeCoGm(g.user_id)}
+                    className="text-xs text-stone-400 hover:text-red-400"
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 
@@ -426,12 +543,14 @@ export default function CampaignManage() {
               >
                 {tokenVisible ? 'Hide token' : 'Show token'}
               </button>
-              <button
-                onClick={regenerateToken}
-                className="text-xs px-3 py-1 bg-stone-700 hover:bg-red-700 rounded"
-              >
-                Regenerate
-              </button>
+              {isOwner && (
+                <button
+                  onClick={regenerateToken}
+                  className="text-xs px-3 py-1 bg-stone-700 hover:bg-red-700 rounded"
+                >
+                  Regenerate
+                </button>
+              )}
             </div>
           )}
         </div>

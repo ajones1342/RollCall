@@ -9,7 +9,7 @@ import {
   getValidBroadcasterToken,
   jsonResponse,
   TWITCH_CLIENT_ID,
-  userOwnsCampaign,
+  userIsCampaignGM,
 } from '../_lib/twitch';
 
 export const config = { runtime: 'edge' };
@@ -51,8 +51,8 @@ export default async function handler(req: Request): Promise<Response> {
   const user = await getAuthedUser(supabase, req.headers.get('authorization'));
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
 
-  const ok = await userOwnsCampaign(supabase, user.id, campaignId);
-  if (!ok) return jsonResponse({ error: 'Not the campaign owner' }, 403);
+  const ok = await userIsCampaignGM(supabase, user.id, campaignId);
+  if (!ok) return jsonResponse({ error: 'Not a GM on this campaign' }, 403);
 
   const result = await getValidBroadcasterToken(supabase, campaignId);
   if (!result) {

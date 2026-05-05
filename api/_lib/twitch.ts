@@ -135,6 +135,26 @@ export async function userOwnsCampaign(
   return data?.owner_id === userId;
 }
 
+// Confirm the user is a GM (owner OR co-GM) on the campaign. Use this for
+// actions that any GM can perform (chat post, dice, polls). Owner-only
+// actions like broadcaster sign-link/disconnect stay on userOwnsCampaign.
+export async function userIsCampaignGM(
+  supabase: SupabaseClient,
+  userId: string,
+  campaignId: string
+): Promise<boolean> {
+  // Cheap path: owner check.
+  if (await userOwnsCampaign(supabase, userId, campaignId)) return true;
+  // Co-GM membership check.
+  const { data } = await supabase
+    .from('campaign_co_gms')
+    .select('user_id')
+    .eq('campaign_id', campaignId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 export type BroadcasterRow = {
   campaign_id: string;
   broadcaster_id: string;
