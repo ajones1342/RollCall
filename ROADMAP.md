@@ -77,6 +77,41 @@ Don't start until your own stream is using RollCall solidly.
 - Optional self-host docs
 - Stripe billing if hosted (or keep it free / donation-supported)
 
+## Tier 7 — Multi-system support
+
+Today the data model bakes in D&D 5e (six named attributes, HP/temp/max, death saves, single Inspiration bit, 14 standard 5e conditions). User has plans for World of Darkness and Call of Cthulhu campaigns and wants to host other streamers' systems eventually.
+
+### Phase 1 — Configurable attributes per campaign
+
+| Change | Notes |
+|---|---|
+| Schema: add `characters.attributes` JSONB | Backfill from existing named columns; deprecate (but keep) old columns. |
+| `campaigns.settings.system` selector | `'5e' \| 'wod' \| 'coc' \| 'custom'`. Built-in templates declare the attribute keys + display labels. |
+| Built-in templates | **5e:** STR/DEX/CON/INT/WIS/CHA. **WoD:** Strength/Dexterity/Stamina/Charisma/Manipulation/Composure/Intelligence/Wits/Resolve (9). **CoC:** STR/CON/SIZ/DEX/APP/INT/POW/EDU (+ Luck as a resource). **Custom:** GM defines their own list. |
+| PlayerEdit + Overlay + Combat Tracker | Iterate over the campaign's attribute set instead of hardcoded keys. |
+
+### Phase 2 — Secondary resources
+
+| Change | Notes |
+|---|---|
+| Schema: add `characters.resources` JSONB | Each entry `{ key, label, current, max }`. |
+| Per-system defaults | 5e: just HP. WoD: Health + Willpower. CoC: HP + Sanity + Magic Points + Luck. |
+| PlayerEdit / Overlay / Tracker | Render configurable resource trackers alongside HP. |
+
+### Phase 3 (optional) — WoD damage tracks
+
+Replace the single-pool HP for WoD with three separate trackers (Bashing / Lethal / Aggravated), each with checkable boxes. Real UX work — only worth doing if the single-pool shortcut feels limiting in actual play.
+
+### Backward compat strategy
+
+Stage the rollout to never break the user's running 5e game:
+
+1. Migration adds JSONB columns + backfills from existing data (no breakage)
+2. Code reads from JSONB, writes to both old and new (still works for old data)
+3. Deploy, verify 5e campaign still works as before
+4. New WoD/CoC campaigns use the templates
+5. Drop legacy columns much later
+
 ## Next
 
 Knock out **all of Tier 1** in one pass — they're individually small and they compound. After that, decide between combat clarity (Tier 2) or visual polish (Tier 3) based on what surfaces in real test sessions.
