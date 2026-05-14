@@ -6,6 +6,7 @@ import {
   ATTRIBUTE_LABELS,
   DEFAULT_THEME,
   activeCombatant,
+  activeScenePreset,
   alignToFlex,
   anchorCss,
   elementFillStyle,
@@ -15,6 +16,7 @@ import {
   type Character,
   type CombatState,
   type DiceRoll,
+  type ScenePreset,
   type Theme,
 } from '../lib/types';
 
@@ -36,6 +38,7 @@ export default function Overlay() {
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
   const [combat, setCombat] = useState<CombatState | undefined>(undefined);
   const [lastRoll, setLastRoll] = useState<DiceRoll | undefined>(undefined);
+  const [scenePreset, setScenePreset] = useState<ScenePreset | null>(null);
 
   useEffect(() => {
     document.body.classList.add('overlay-mode');
@@ -64,6 +67,7 @@ export default function Overlay() {
       setTheme(mergeTheme(row?.theme));
       setCombat(row?.settings?.combat);
       setLastRoll(row?.settings?.lastRoll);
+      setScenePreset(activeScenePreset(row?.settings));
     };
 
     refreshCharacters();
@@ -98,15 +102,22 @@ export default function Overlay() {
   }, [campaignId, characterId]);
 
   const active = activeCombatant(combat);
-  const isActiveFor = (c: Character) => Boolean(active && active.characterId === c.id);
+  const isActiveFor = (c: Character) =>
+    Boolean(active && active.characterId === c.id) && !scenePreset?.hideActiveTurnGlow;
+  const hideDice = Boolean(scenePreset?.hideDice);
 
   if (characterId) {
     const c = characters[0];
     if (!c) return null;
     return (
       <ScaleToFit canvasWidth={theme.canvasWidth} canvasHeight={theme.canvasHeight}>
-        <CharacterCard1080 c={c} theme={theme} activeTurn={isActiveFor(c)} />
-        <DiceToast roll={lastRoll} theme={theme} />
+        <CharacterCard1080
+          c={c}
+          theme={theme}
+          activeTurn={isActiveFor(c)}
+          scenePreset={scenePreset}
+        />
+        {!hideDice && <DiceToast roll={lastRoll} theme={theme} />}
       </ScaleToFit>
     );
   }
@@ -134,7 +145,12 @@ export default function Overlay() {
           }}
         >
           <ScaleToFit canvasWidth={theme.canvasWidth} canvasHeight={theme.canvasHeight}>
-            <CharacterCard1080 c={c} theme={theme} activeTurn={isActiveFor(c)} />
+            <CharacterCard1080
+              c={c}
+              theme={theme}
+              activeTurn={isActiveFor(c)}
+              scenePreset={scenePreset}
+            />
           </ScaleToFit>
         </div>
       ))}
@@ -375,12 +391,14 @@ export function CharacterCard1080({
   theme,
   editable,
   activeTurn,
+  scenePreset,
   onPositionChange,
 }: {
   c: Character;
   theme: Theme;
   editable?: boolean;
   activeTurn?: boolean;
+  scenePreset?: ScenePreset | null;
   onPositionChange?: (element: DraggableElement, x: number, y: number) => void;
 }) {
   const pos = theme.positions;
@@ -456,6 +474,9 @@ export function CharacterCard1080({
 
   const dragStyle: React.CSSProperties = editable ? { cursor: 'grab' } : {};
   const hidden = new Set(normalizeHiddenFields(c.hidden_fields));
+  if (scenePreset) {
+    for (const f of scenePreset.hideFields) hidden.add(f);
+  }
   const showName = !hidden.has('name');
   const showRace = !hidden.has('race') && Boolean(c.race);
   const showClass = !hidden.has('class') && Boolean(c.class);

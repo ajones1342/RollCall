@@ -56,7 +56,33 @@ export type CampaignSettings = {
     onLowHp?: boolean; // crosses 25% threshold downward
     onZeroHp?: boolean; // hits exactly 0
   };
+
+  // Scene presets let the GM globally hide overlay elements for ALL players
+  // at once — useful for nested-scene setups (e.g. a "stream ending" scene
+  // that shows only the streamer name/avatar, hiding character info). The
+  // GM defines named presets and toggles which is active; overlays merge
+  // the active preset's hideFields on top of each character's own
+  // hidden_fields. activeScenePresetId === null/undefined means no preset
+  // is applied (default behavior).
+  scenePresets?: ScenePreset[];
+  activeScenePresetId?: string | null;
 };
+
+export type ScenePreset = {
+  id: string;
+  name: string;
+  hideFields: HideableField[];
+  hideDice: boolean;
+  hideActiveTurnGlow: boolean;
+};
+
+export function activeScenePreset(
+  settings: CampaignSettings | null | undefined
+): ScenePreset | null {
+  const id = settings?.activeScenePresetId;
+  if (!id) return null;
+  return settings?.scenePresets?.find((p) => p.id === id) ?? null;
+}
 
 export type DiceRoll = {
   expression: string; // e.g. "1d20+5"

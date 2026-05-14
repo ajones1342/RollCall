@@ -18,6 +18,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../hooks/useSession';
 import {
+  HIDEABLE_FIELDS,
   advanceTurn,
   previousTurn,
   rollDice,
@@ -27,6 +28,8 @@ import {
   type CombatState,
   type Combatant,
   type DiceRoll,
+  type HideableField,
+  type ScenePreset,
 } from '../lib/types';
 
 export default function CampaignManage() {
@@ -682,6 +685,17 @@ export default function CampaignManage() {
           />
         </div>
       </section>
+
+      <ScenePresets
+        presets={campaign.settings?.scenePresets ?? []}
+        activeId={campaign.settings?.activeScenePresetId ?? null}
+        onPresetsChange={(next) => setSetting('scenePresets', next)}
+        onActiveChange={(id) => setSetting('activeScenePresetId', id)}
+        origin={origin}
+        vttToken={vttToken}
+        copiedKey={copied}
+        onCopy={copy}
+      />
 
       <section>
         <h2 className="text-2xl mb-1">Party ({characters.length})</h2>
@@ -1445,6 +1459,272 @@ function AlertToggle(props: {
         <span className="block text-xs text-stone-500 mt-0.5">{props.description}</span>
       </span>
     </label>
+  );
+}
+
+function ScenePresets(props: {
+  presets: ScenePreset[];
+  activeId: string | null;
+  onPresetsChange: (next: ScenePreset[]) => void;
+  onActiveChange: (id: string | null) => void;
+  origin: string;
+  vttToken: string | null;
+  copiedKey: string | null;
+  onCopy: (key: string, text: string) => void;
+}) {
+  const { presets, activeId } = props;
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showAutoSwitch, setShowAutoSwitch] = useState(false);
+  const sceneEndpoint = `${props.origin}/api/vtt/scene`;
+  const examplePresetName =
+    presets.find((p) => p.id === activeId)?.name || presets[0]?.name || 'Stream end';
+  const curlExample = `curl -X POST ${sceneEndpoint} \\\n  -H "Authorization: Bearer ${props.vttToken ?? '<token>'}" \\\n  -H "content-type: application/json" \\\n  -d '{"preset":"${examplePresetName}"}'`;
+
+  const addPreset = () => {
+    const p: ScenePreset = {
+      id: crypto.randomUUID(),
+      name: 'New scene',
+      hideFields: [],
+      hideDice: false,
+      hideActiveTurnGlow: false,
+    };
+    props.onPresetsChange([...presets, p]);
+    setEditingId(p.id);
+  };
+
+  const updatePreset = (id: string, patch: Partial<ScenePreset>) => {
+    props.onPresetsChange(
+      presets.map((p) => (p.id === id ? { ...p, ...patch } : p))
+    );
+  };
+
+  const removePreset = (id: string) => {
+    if (!confirm('Delete this scene preset?')) return;
+    props.onPresetsChange(presets.filter((p) => p.id !== id));
+    if (activeId === id) props.onActiveChange(null);
+    if (editingId === id) setEditingId(null);
+  };
+
+  const toggleField = (id: string, field: HideableField, on: boolean) => {
+    const p = presets.find((x) => x.id === id);
+    if (!p) return;
+    const set = new Set(p.hideFields);
+    if (on) set.add(field);
+    else set.delete(field);
+    updatePreset(id, { hideFields: Array.from(set) });
+  };
+
+  return (
+    <section className="mb-8 bg-stone-800 border border-stone-700 rounded p-4">
+      <h2 className="text-xl mb-1">Scene presets</h2>
+      <p className="text-xs text-stone-500 mb-3">
+        Globally hide overlay elements for all players at once — useful when
+        switching OBS scenes (e.g. a stream-ending scene showing only
+        streamer names). The active preset stacks on top of each
+        character's own hide toggles. Changes broadcast to overlays in
+        realtime.
+      </p>
+
+      <div className="flex flex-wrap gap-1 mb-3">
+        <PresetPill
+          label="Off"
+          active={!activeId}
+          onClick={() => props.onActiveChange(null)}
+        />
+        {presets.map((p) => (
+          <PresetPill
+            key={p.id}
+            label={p.name || '(unnamed)'}
+            active={activeId === p.id}
+            onClick={() => props.onActiveChange(p.id)}
+          />
+        ))}
+      </div>
+
+      {presets.length === 0 ? (
+        <p className="text-sm text-stone-500 mb-3">No presets yet.</p>
+      ) : (
+        <ul className="space-y-2 mb-3">
+          {presets.map((p) => {
+            const isEditing = editingId === p.id;
+            const summary =
+              p.hideFields.length === 0 && !p.hideDice && !p.hideActiveTurnGlow
+                ? 'hides nothing'
+                : [
+                    ...p.hideFields.map(
+                      (f) =>
+                        HIDEABLE_FIELDS.find((h) => h.key === f)?.label ?? f
+                    ),
+                    ...(p.hideDice ? ['Dice toast'] : []),
+                    ...(p.hideActiveTurnGlow ? ['Active-turn glow'] : []),
+                  ].join(', ');
+            return (
+              <li
+                key={p.id}
+                className="bg-stone-900 border border-stone-700 rounded p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    value={p.name}
+                    onChange={(e) =>
+                      updatePreset(p.id, { name: e.target.value })
+                    }
+                    placeholder="Preset name"
+                    className="bg-stone-950 border border-stone-700 rounded px-2 py-1 text-sm flex-1"
+                  />
+                  <button
+                    onClick={() =>
+                      setEditingId(isEditing ? null : p.id)
+                    }
+                    className="text-xs px-3 py-1 bg-stone-700 hover:bg-stone-600 rounded"
+                  >
+                    {isEditing ? 'Done' : 'Edit'}
+                  </button>
+                  <button
+                    onClick={() => removePreset(p.id)}
+                    className="text-xs text-stone-500 hover:text-red-400 px-1"
+                  >
+                    Remove
+                  </button>
+                </div>
+                {!isEditing && (
+                  <p className="text-xs text-stone-500 mt-2">Hides: {summary}</p>
+                )}
+                {isEditing && (
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-y-1 gap-x-4">
+                    {HIDEABLE_FIELDS.map((f) => (
+                      <label
+                        key={f.key}
+                        className="flex items-center gap-2 text-sm cursor-pointer select-none"
+                      >
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4"
+                          checked={p.hideFields.includes(f.key)}
+                          onChange={(e) =>
+                            toggleField(p.id, f.key, e.target.checked)
+                          }
+                        />
+                        <span className="text-stone-200">Hide {f.label}</span>
+                      </label>
+                    ))}
+                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4"
+                        checked={p.hideDice}
+                        onChange={(e) =>
+                          updatePreset(p.id, { hideDice: e.target.checked })
+                        }
+                      />
+                      <span className="text-stone-200">Hide Dice toast</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4"
+                        checked={p.hideActiveTurnGlow}
+                        onChange={(e) =>
+                          updatePreset(p.id, {
+                            hideActiveTurnGlow: e.target.checked,
+                          })
+                        }
+                      />
+                      <span className="text-stone-200">
+                        Hide Active-turn glow
+                      </span>
+                    </label>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={addPreset}
+          className="text-sm px-3 py-1.5 bg-purple-700 hover:bg-purple-600 rounded"
+        >
+          + New preset
+        </button>
+        <button
+          onClick={() => setShowAutoSwitch((v) => !v)}
+          className="text-sm px-3 py-1.5 bg-stone-700 hover:bg-stone-600 rounded"
+        >
+          {showAutoSwitch ? 'Hide auto-switch' : 'Auto-switch from OBS'}
+        </button>
+      </div>
+
+      {showAutoSwitch && (
+        <div className="mt-4 pt-4 border-t border-stone-700">
+          <p className="text-xs text-stone-500 mb-3">
+            Have OBS hit this endpoint when a scene activates. A drop-in OBS
+            Python script lives at{' '}
+            <code className="text-stone-300">obs/rollcall-scene-sync.py</code>{' '}
+            — add it via <em>Tools → Scripts</em> and paste in the endpoint
+            and token below. Match preset names to OBS scene names and the
+            switch happens automatically; OBS scenes without a matching
+            preset clear the active one. Uses the same Bearer token as the
+            VTT bridge — keep it secret. Pass{' '}
+            <code className="text-stone-300">null</code> or an empty string
+            to clear the active preset.
+          </p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wide text-stone-400 w-20">
+                Endpoint
+              </span>
+              <code className="text-xs text-stone-300 bg-stone-900 px-2 py-1 rounded flex-1 truncate">
+                POST {sceneEndpoint}
+              </code>
+              <button
+                onClick={() => props.onCopy('scene-url', sceneEndpoint)}
+                className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded whitespace-nowrap"
+              >
+                {props.copiedKey === 'scene-url' ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-xs uppercase tracking-wide text-stone-400 w-20 pt-2">
+                Example
+              </span>
+              <pre className="text-xs text-stone-300 bg-stone-900 px-2 py-2 rounded flex-1 overflow-x-auto whitespace-pre">
+                {curlExample}
+              </pre>
+              <button
+                onClick={() => props.onCopy('scene-curl', curlExample)}
+                disabled={!props.vttToken}
+                className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded whitespace-nowrap mt-2"
+              >
+                {props.copiedKey === 'scene-curl' ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PresetPill(props: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={props.onClick}
+      className={
+        'text-sm px-3 py-1 rounded border ' +
+        (props.active
+          ? 'bg-purple-700 border-purple-500 text-white'
+          : 'bg-stone-900 border-stone-600 text-stone-300 hover:border-stone-400')
+      }
+    >
+      {props.label}
+    </button>
   );
 }
 
