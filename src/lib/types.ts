@@ -22,6 +22,7 @@ export type Character = {
   death_save_successes: number;
   death_save_failures: number;
   inspiration: boolean;
+  table_points: number;
   notes: string;
   twitch_display_name: string | null;
   twitch_avatar_url: string | null;
@@ -66,7 +67,31 @@ export type CampaignSettings = {
   // is applied (default behavior).
   scenePresets?: ScenePreset[];
   activeScenePresetId?: string | null;
+
+  // Table points (Klout / Inspiration-like grant points). Opt-in per
+  // campaign — when undefined or enabled=false, no UI surfaces it and the
+  // overlay element is suppressed. Label is GM-chosen ("Klout", "Hero
+  // Points", "Bennies", etc.); icon is a short glyph rendered next to the
+  // count on the overlay.
+  tablePoints?: TablePointsConfig;
 };
+
+export type TablePointsConfig = {
+  enabled: boolean;
+  label: string;
+  icon?: string;
+};
+
+// Resolve the table-points config if enabled, else null. Callers should
+// branch on the result to decide whether to render UI / accept webhook
+// updates / etc.
+export function tablePointsConfig(
+  settings: CampaignSettings | null | undefined
+): TablePointsConfig | null {
+  const cfg = settings?.tablePoints;
+  if (!cfg || !cfg.enabled) return null;
+  return cfg;
+}
 
 export type ScenePreset = {
   id: string;
@@ -207,6 +232,7 @@ export type FontSizes = {
   attributeLabel: number;
   attributeValue: number;
   streamerName: number;
+  points: number;
 };
 
 export type FillMode = 'solid' | 'gradient' | 'textured';
@@ -265,6 +291,10 @@ export type Positions = {
   trackerAnchor: Anchor;
   trackerWidth: number;
   trackerRowGap: number;
+  pointsX: number;
+  pointsY: number;
+  pointsAnchor: Anchor;
+  pointsAlign: TextAlign;
 };
 
 export type ElementColorKey =
@@ -277,6 +307,7 @@ export type ElementColorKey =
   | 'attributeLabel'
   | 'attributeValue'
   | 'streamerName'
+  | 'tablePoints'
   // combat tracker
   | 'trackerRound'
   | 'trackerInit'
@@ -353,6 +384,12 @@ export function defaultPositions(edgePadding: number = 80): Positions {
     trackerAnchor: 'top-left',
     trackerWidth: 1000,
     trackerRowGap: 18,
+    // Points: default to the top-center area, above the name block, so it
+    // reads like a status pip. GM will reposition with the theme editor.
+    pointsX: 1920 / 2,
+    pointsY: 1080 - edgePadding,
+    pointsAnchor: 'top-left',
+    pointsAlign: 'center',
   };
 }
 
@@ -411,6 +448,10 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
       trackerAnchor: anchor('trackerAnchor') ?? def.trackerAnchor,
       trackerWidth: num('trackerWidth') ?? def.trackerWidth,
       trackerRowGap: num('trackerRowGap') ?? def.trackerRowGap,
+      pointsX: num('pointsX') ?? def.pointsX,
+      pointsY: num('pointsY') ?? def.pointsY,
+      pointsAnchor: anchor('pointsAnchor') ?? def.pointsAnchor,
+      pointsAlign: align('pointsAlign') ?? def.pointsAlign,
     };
   }
 
@@ -452,6 +493,10 @@ function migratePositions(stored: unknown, edgePadding: number): Positions {
     trackerAnchor: def.trackerAnchor,
     trackerWidth: def.trackerWidth,
     trackerRowGap: def.trackerRowGap,
+    pointsX: def.pointsX,
+    pointsY: def.pointsY,
+    pointsAnchor: def.pointsAnchor,
+    pointsAlign: def.pointsAlign,
   };
 }
 
@@ -484,6 +529,7 @@ export const DEFAULT_THEME: Theme = {
     attributeLabel: 44,
     attributeValue: 80,
     streamerName: 92,
+    points: 64,
   },
 };
 
@@ -634,7 +680,8 @@ export type HideableField =
   | 'attributes'
   | 'inspiration'
   | 'conditions'
-  | 'streamer_name';
+  | 'streamer_name'
+  | 'table_points';
 
 export const HIDEABLE_FIELDS: { key: HideableField; label: string }[] = [
   { key: 'name', label: 'Character name' },
@@ -645,6 +692,7 @@ export const HIDEABLE_FIELDS: { key: HideableField; label: string }[] = [
   { key: 'inspiration', label: 'Inspiration star' },
   { key: 'conditions', label: 'Conditions' },
   { key: 'streamer_name', label: 'Streamer name' },
+  { key: 'table_points', label: 'Table points' },
 ];
 
 const KNOWN_FIELDS: ReadonlySet<HideableField> = new Set([
@@ -656,6 +704,7 @@ const KNOWN_FIELDS: ReadonlySet<HideableField> = new Set([
   'inspiration',
   'conditions',
   'streamer_name',
+  'table_points',
 ]);
 
 // 5e Player's Handbook conditions. Click-to-toggle on the player edit page.

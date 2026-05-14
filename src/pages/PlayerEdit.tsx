@@ -410,6 +410,27 @@ export default function PlayerEdit() {
         </div>
       </div>
 
+      {campaign?.settings?.tablePoints?.enabled && character && (
+        <div className="bg-stone-800 border border-stone-700 rounded p-4 mb-6">
+          <div className="flex items-baseline justify-between gap-3">
+            <div>
+              <div className="text-stone-200">
+                {campaign.settings.tablePoints.icon
+                  ? `${campaign.settings.tablePoints.icon} `
+                  : ''}
+                {campaign.settings.tablePoints.label}
+              </div>
+              <div className="text-xs text-stone-500 mt-0.5">
+                Granted by your GM. Ask them when you spend one.
+              </div>
+            </div>
+            <div className="text-3xl text-stone-100 tabular-nums">
+              {character.table_points ?? 0}
+            </div>
+          </div>
+        </div>
+      )}
+
       <h2 className="text-xl mb-2">Attributes</h2>
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-8">
         {ATTRIBUTE_KEYS.map((key) => (

@@ -12,11 +12,13 @@ import {
   elementFillStyle,
   mergeTheme,
   normalizeHiddenFields,
+  tablePointsConfig,
   type CampaignSettings,
   type Character,
   type CombatState,
   type DiceRoll,
   type ScenePreset,
+  type TablePointsConfig,
   type Theme,
 } from '../lib/types';
 
@@ -39,6 +41,7 @@ export default function Overlay() {
   const [combat, setCombat] = useState<CombatState | undefined>(undefined);
   const [lastRoll, setLastRoll] = useState<DiceRoll | undefined>(undefined);
   const [scenePreset, setScenePreset] = useState<ScenePreset | null>(null);
+  const [pointsCfg, setPointsCfg] = useState<TablePointsConfig | null>(null);
 
   useEffect(() => {
     document.body.classList.add('overlay-mode');
@@ -68,6 +71,7 @@ export default function Overlay() {
       setCombat(row?.settings?.combat);
       setLastRoll(row?.settings?.lastRoll);
       setScenePreset(activeScenePreset(row?.settings));
+      setPointsCfg(tablePointsConfig(row?.settings));
     };
 
     refreshCharacters();
@@ -116,6 +120,7 @@ export default function Overlay() {
           theme={theme}
           activeTurn={isActiveFor(c)}
           scenePreset={scenePreset}
+          pointsCfg={pointsCfg}
         />
         {!hideDice && <DiceToast roll={lastRoll} theme={theme} />}
       </ScaleToFit>
@@ -150,6 +155,7 @@ export default function Overlay() {
               theme={theme}
               activeTurn={isActiveFor(c)}
               scenePreset={scenePreset}
+              pointsCfg={pointsCfg}
             />
           </ScaleToFit>
         </div>
@@ -384,7 +390,13 @@ function DeathSavesIndicator({
   );
 }
 
-export type DraggableElement = 'name' | 'attributes' | 'hp' | 'streamer' | 'portrait';
+export type DraggableElement =
+  | 'name'
+  | 'attributes'
+  | 'hp'
+  | 'streamer'
+  | 'portrait'
+  | 'points';
 
 export function CharacterCard1080({
   c,
@@ -392,6 +404,7 @@ export function CharacterCard1080({
   editable,
   activeTurn,
   scenePreset,
+  pointsCfg,
   onPositionChange,
 }: {
   c: Character;
@@ -399,6 +412,7 @@ export function CharacterCard1080({
   editable?: boolean;
   activeTurn?: boolean;
   scenePreset?: ScenePreset | null;
+  pointsCfg?: TablePointsConfig | null;
   onPositionChange?: (element: DraggableElement, x: number, y: number) => void;
 }) {
   const pos = theme.positions;
@@ -446,7 +460,9 @@ export function CharacterCard1080({
             ? pos.hpX
             : element === 'streamer'
               ? pos.streamerX
-              : pos.portraitX;
+              : element === 'portrait'
+                ? pos.portraitX
+                : pos.pointsX;
     const startY =
       element === 'name'
         ? pos.nameY
@@ -456,7 +472,9 @@ export function CharacterCard1080({
             ? pos.hpY
             : element === 'streamer'
               ? pos.streamerY
-              : pos.portraitY;
+              : element === 'portrait'
+                ? pos.portraitY
+                : pos.pointsY;
     const startMouseX = e.clientX;
     const startMouseY = e.clientY;
     const onMove = (ev: MouseEvent) => {
@@ -494,6 +512,12 @@ export function CharacterCard1080({
   const showDeathSaves = showHp && c.current_hp === 0;
   const showAttributes = !hidden.has('attributes');
   const showStreamer = !hidden.has('streamer_name') && c.twitch_display_name;
+  const pointsFill = elementFillStyle(theme, 'tablePoints');
+  const showPoints = Boolean(pointsCfg) && !hidden.has('table_points');
+  const pointsCount = c.table_points ?? 0;
+  const pointsText = pointsCfg
+    ? `${pointsCfg.icon ? `${pointsCfg.icon} ` : ''}${pointsCfg.label}: ${pointsCount}`
+    : '';
 
   return (
     <div
@@ -708,6 +732,33 @@ export function CharacterCard1080({
             }}
           >
             {c.twitch_display_name}
+          </span>
+        </div>
+      )}
+
+      {/* Table points (Klout / Inspiration-like grant pool). Anchored corner
+          of the text at (pointsX, pointsY); text alignment per pointsAlign.
+          Only renders when the campaign has enabled the feature. */}
+      {showPoints && (
+        <div
+          className={editable ? 'rc-drag' : undefined}
+          onMouseDown={editable ? (e) => startDrag(e, 'points') : undefined}
+          style={{
+            ...anchorCss(pos.pointsAnchor, pos.pointsX, pos.pointsY, theme.canvasWidth, theme.canvasHeight),
+            whiteSpace: 'nowrap',
+            textAlign: pos.pointsAlign,
+            ...dragStyle,
+          }}
+        >
+          <span
+            style={{
+              ...pointsFill,
+              fontSize: sz.points,
+              letterSpacing: '0.08em',
+              fontWeight: 600,
+            }}
+          >
+            {pointsText}
           </span>
         </div>
       )}

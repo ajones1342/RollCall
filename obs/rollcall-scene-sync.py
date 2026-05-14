@@ -9,7 +9,11 @@ reverts to per-character hide toggles).
 
 Setup
 -----
-1. Install Python (matching OBS architecture, usually 64-bit). 3.6+ works.
+1. Install Python 3.6 - 3.11, 64-bit (matching OBS). 3.12+ is NOT supported
+   by OBS scripting yet and will show "Python not currently loaded" in the
+   settings panel. On Windows the quickest path is:
+       winget install Python.Python.3.11
+   which installs to C:\\Users\\<you>\\AppData\\Local\\Programs\\Python\\Python311.
 2. In OBS: Tools -> Scripts -> Python Settings, point it at your Python
    install (the folder containing python.exe / python3 dylib, not the exe
    itself). Restart OBS if it prompts.
@@ -38,7 +42,7 @@ import threading
 import urllib.error
 import urllib.request
 
-import obspython as obs
+import obspython as obs  # type: ignore[import-not-found]  # provided by OBS at runtime
 
 _endpoint = ""
 _token = ""

@@ -41,6 +41,7 @@ const SAMPLE_CHARACTER: Character = {
   death_save_successes: 0,
   death_save_failures: 0,
   inspiration: true,
+  table_points: 2,
   notes: '',
   twitch_display_name: 'StreamerName',
   // Inline SVG so the preview shows a portrait without an external request.
@@ -49,6 +50,10 @@ const SAMPLE_CHARACTER: Character = {
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
+
+// Always show the points element in the theme preview so the GM can
+// position it even when the campaign hasn't enabled the feature yet.
+const SAMPLE_POINTS_CFG = { enabled: true, label: 'Klout', icon: '⚡' };
 
 const SAMPLE_ROLL = {
   expression: '1d20+5',
@@ -195,6 +200,9 @@ export default function ThemeEditor() {
       } else if (element === 'portrait') {
         p.portraitX = x;
         p.portraitY = y;
+      } else if (element === 'points') {
+        p.pointsX = x;
+        p.pointsY = y;
       }
       return { ...d, positions: p };
     });
@@ -455,6 +463,11 @@ export default function ThemeEditor() {
                 value={draft.elementColors?.streamerName}
                 onChange={(v) => setElementColor('streamerName', v)}
               />
+              <ElementColorRow
+                label="Table points"
+                value={draft.elementColors?.tablePoints}
+                onChange={(v) => setElementColor('tablePoints', v)}
+              />
             </ColorGroup>
 
             <ColorGroup label="Combat Tracker">
@@ -656,6 +669,35 @@ export default function ThemeEditor() {
               />
             </PositionGroup>
 
+            <PositionGroup label="Table points">
+              <SliderRow
+                label="Horizontal"
+                value={draft.positions.pointsX}
+                min={0}
+                max={draft.canvasWidth}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('pointsX', v)}
+              />
+              <SliderRow
+                label="Vertical"
+                value={draft.positions.pointsY}
+                min={0}
+                max={draft.canvasHeight}
+                step={2}
+                unit="px"
+                onChange={(v) => setPosition('pointsY', v)}
+              />
+              <AnchorRow
+                value={draft.positions.pointsAnchor}
+                onChange={(v) => setPosition('pointsAnchor', v)}
+              />
+              <AlignRow
+                value={draft.positions.pointsAlign}
+                onChange={(v) => setPosition('pointsAlign', v)}
+              />
+            </PositionGroup>
+
             <PositionGroup label="Combat tracker">
               <SliderRow
                 label="Horizontal"
@@ -829,6 +871,15 @@ export default function ThemeEditor() {
               unit="px"
               onChange={(v) => setFontSize('streamerName', v)}
             />
+            <SliderRow
+              label="Table points"
+              value={draft.fontSizes.points}
+              min={24}
+              max={140}
+              step={2}
+              unit="px"
+              onChange={(v) => setFontSize('points', v)}
+            />
           </Section>
 
           <div className="flex items-center gap-3 sticky bottom-0 bg-stone-900 py-3">
@@ -909,6 +960,7 @@ export default function ThemeEditor() {
                     c={SAMPLE_CHARACTER}
                     theme={draft}
                     editable={editMode}
+                    pointsCfg={SAMPLE_POINTS_CFG}
                     onPositionChange={handleDrag}
                   />
                   <DiceToast

@@ -30,6 +30,7 @@ import {
   type DiceRoll,
   type HideableField,
   type ScenePreset,
+  type TablePointsConfig,
 } from '../lib/types';
 
 export default function CampaignManage() {
@@ -148,6 +149,18 @@ export default function CampaignManage() {
     const { error } = await supabase
       .from('characters')
       .update({ current_hp: next })
+      .eq('id', id);
+    if (error) alert(error.message);
+  };
+
+  const bumpPoints = async (id: string, delta: number, current: number) => {
+    const next = Math.max(0, current + delta);
+    setCharacters((cs) =>
+      cs.map((c) => (c.id === id ? { ...c, table_points: next } : c))
+    );
+    const { error } = await supabase
+      .from('characters')
+      .update({ table_points: next })
       .eq('id', id);
     if (error) alert(error.message);
   };
@@ -637,6 +650,17 @@ export default function CampaignManage() {
         </label>
 
         <div className="mt-5 pt-4 border-t border-stone-700">
+          <TablePointsSettings
+            config={campaign.settings?.tablePoints}
+            onChange={(next) => setSetting('tablePoints', next)}
+            origin={origin}
+            vttToken={vttToken}
+            copiedKey={copied}
+            onCopy={copy}
+          />
+        </div>
+
+        <div className="mt-5 pt-4 border-t border-stone-700">
           <div className="text-stone-200 mb-1">Twitch chat alerts</div>
           <p className="text-xs text-stone-500 mb-3">
             Auto-post events to your linked broadcast channel. This page must be
@@ -725,6 +749,8 @@ export default function CampaignManage() {
                     onCopy={copy}
                     onRemove={removeCharacter}
                     onBumpHp={bumpHp}
+                    pointsCfg={campaign.settings?.tablePoints}
+                    onBumpPoints={bumpPoints}
                   />
                 ))}
               </ul>
@@ -744,6 +770,8 @@ function SortableCharacterRow(props: {
   onCopy: (key: string, text: string) => void;
   onRemove: (id: string) => void;
   onBumpHp: (id: string, delta: number, current: number) => void;
+  pointsCfg: TablePointsConfig | undefined;
+  onBumpPoints: (id: string, delta: number, current: number) => void;
 }) {
   const ch = props.character;
   const charOverlayUrl = `${props.origin}/overlay/${props.campaignId}/${ch.id}`;
@@ -813,6 +841,31 @@ function SortableCharacterRow(props: {
               +5
             </button>
           </div>
+          {props.pointsCfg?.enabled && (
+            <div className="mt-2 flex items-center gap-1 flex-wrap">
+              <span className="text-xs uppercase tracking-wide text-stone-500 mr-1">
+                {props.pointsCfg.icon ? `${props.pointsCfg.icon} ` : ''}
+                {props.pointsCfg.label} {ch.table_points ?? 0}
+              </span>
+              <button
+                onClick={() =>
+                  props.onBumpPoints(ch.id, -1, ch.table_points ?? 0)
+                }
+                disabled={(ch.table_points ?? 0) <= 0}
+                className="text-xs px-2 py-0.5 bg-stone-900 hover:bg-stone-700 disabled:opacity-40 border border-stone-600 rounded"
+              >
+                −1
+              </button>
+              <button
+                onClick={() =>
+                  props.onBumpPoints(ch.id, +1, ch.table_points ?? 0)
+                }
+                className="text-xs px-2 py-0.5 bg-stone-900 hover:bg-stone-700 border border-stone-600 rounded"
+              >
+                +1
+              </button>
+            </div>
+          )}
           <div className="mt-2 flex items-center gap-2">
             <code className="text-xs text-stone-300 bg-stone-900 px-2 py-1 rounded truncate flex-1">
               {charOverlayUrl}
@@ -1462,6 +1515,137 @@ function AlertToggle(props: {
   );
 }
 
+function TablePointsSettings(props: {
+  config: TablePointsConfig | undefined;
+  onChange: (next: TablePointsConfig) => void;
+  origin: string;
+  vttToken: string | null;
+  copiedKey: string | null;
+  onCopy: (key: string, text: string) => void;
+}) {
+  const enabled = Boolean(props.config?.enabled);
+  const label = props.config?.label ?? '';
+  const icon = props.config?.icon ?? '';
+  const [showWebhook, setShowWebhook] = useState(false);
+  const pointsEndpoint = `${props.origin}/api/vtt/points`;
+  const curlGrant = `curl -X POST ${pointsEndpoint} \\\n  -H "Authorization: Bearer ${props.vttToken ?? '<token>'}" \\\n  -H "content-type: application/json" \\\n  -d '{"character":"<twitch or character name>","delta":1}'`;
+
+  // Keep label/icon when toggling off so flipping back on restores them.
+  const setEnabled = (v: boolean) =>
+    props.onChange({
+      enabled: v,
+      label: v ? label || 'Klout' : label,
+      icon,
+    });
+
+  const setLabel = (v: string) => props.onChange({ enabled, label: v, icon });
+  const setIcon = (v: string) =>
+    props.onChange({ enabled, label, icon: v || undefined });
+
+  return (
+    <div>
+      <label className="flex items-start gap-3 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          className="w-4 h-4 mt-1"
+          checked={enabled}
+          onChange={(e) => setEnabled(e.target.checked)}
+        />
+        <span>
+          <span className="block text-stone-200">Table points</span>
+          <span className="block text-xs text-stone-500 mt-0.5">
+            Per-character grant points (Inspiration-style). GMs award and
+            spend from the party list; players can see their current count.
+            Pick whatever the table calls them — Klout, Hero Points,
+            Bennies, etc.
+          </span>
+        </span>
+      </label>
+      {enabled && (
+        <>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 pl-7">
+            <label className="block">
+              <span className="block text-xs uppercase tracking-wide text-stone-400 mb-1">
+                Label
+              </span>
+              <input
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Klout"
+                className="w-full bg-stone-900 px-2 py-1 rounded border border-stone-600 text-sm"
+              />
+            </label>
+            <label className="block">
+              <span className="block text-xs uppercase tracking-wide text-stone-400 mb-1">
+                Icon (optional)
+              </span>
+              <input
+                value={icon}
+                onChange={(e) => setIcon(e.target.value)}
+                placeholder="⚡"
+                maxLength={4}
+                className="w-20 bg-stone-900 px-2 py-1 rounded border border-stone-600 text-sm text-center"
+              />
+            </label>
+          </div>
+          <div className="mt-3 pl-7">
+            <button
+              onClick={() => setShowWebhook((v) => !v)}
+              className="text-xs px-3 py-1 bg-stone-700 hover:bg-stone-600 rounded"
+            >
+              {showWebhook ? 'Hide streamer.bot webhook' : 'streamer.bot webhook'}
+            </button>
+            {showWebhook && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-stone-500">
+                  POST to this endpoint to grant or spend points from an
+                  external trigger (channel point redemption, chat command,
+                  etc.). Uses the same Bearer token as the VTT bridge — keep
+                  it secret. The <code className="text-stone-300">character</code>{' '}
+                  field matches the Twitch display name first, then the
+                  character name (case-insensitive). Pass{' '}
+                  <code className="text-stone-300">delta</code> to add/subtract
+                  or <code className="text-stone-300">set</code> for an
+                  absolute value. Points can't go below 0.
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase tracking-wide text-stone-400 w-20">
+                    Endpoint
+                  </span>
+                  <code className="text-xs text-stone-300 bg-stone-900 px-2 py-1 rounded flex-1 truncate">
+                    POST {pointsEndpoint}
+                  </code>
+                  <button
+                    onClick={() => props.onCopy('points-url', pointsEndpoint)}
+                    className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded whitespace-nowrap"
+                  >
+                    {props.copiedKey === 'points-url' ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-xs uppercase tracking-wide text-stone-400 w-20 pt-2">
+                    Example
+                  </span>
+                  <pre className="text-xs text-stone-300 bg-stone-900 px-2 py-2 rounded flex-1 overflow-x-auto whitespace-pre">
+                    {curlGrant}
+                  </pre>
+                  <button
+                    onClick={() => props.onCopy('points-curl', curlGrant)}
+                    disabled={!props.vttToken}
+                    className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded whitespace-nowrap mt-2"
+                  >
+                    {props.copiedKey === 'points-curl' ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ScenePresets(props: {
   presets: ScenePreset[];
   activeId: string | null;
@@ -1670,6 +1854,14 @@ function ScenePresets(props: {
             VTT bridge — keep it secret. Pass{' '}
             <code className="text-stone-300">null</code> or an empty string
             to clear the active preset.
+          </p>
+          <p className="text-xs text-amber-300/80 mb-3">
+            Heads up: OBS only loads <strong>Python 3.6 – 3.11</strong> for
+            scripting (64-bit, matching OBS). Newer versions (3.12+) will
+            show "Python not currently loaded" in <em>Tools → Scripts →
+            Python Settings</em>. Install 3.11 alongside whatever you have
+            (<code className="text-stone-300">winget install
+            Python.Python.3.11</code>) and point OBS at that folder.
           </p>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
