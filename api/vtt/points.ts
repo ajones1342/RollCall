@@ -3,7 +3,8 @@
 // external trigger — channel point redemption, chat command, etc.
 //
 // Auth: same Bearer campaign token as /api/vtt/state and /api/vtt/scene.
-// Body shape:
+//
+// POST body shape:
 //
 //   { "character": "Alice", "delta": 1 }   // grant 1
 //   { "character": "Alice", "delta": -1 }  // spend 1
@@ -15,8 +16,17 @@
 // fallback. Ties are resolved to the first match — name your characters
 // distinctly if you have collisions.
 //
-// Refuses 409 if the feature is not enabled on the campaign, so the
-// streamer.bot user gets an obvious error instead of silently mutating an
+// GET returns every character's current count for the campaign, intended
+// for poll-and-display use cases (Stream Deck button titles, etc.):
+//
+//   GET /api/vtt/points
+//   -> { "characters": [
+//          { "id": "...", "name": "Alice", "twitch_display_name": "alice_tv",
+//            "table_points": 3 }, ...
+//        ] }
+//
+// Both verbs refuse 409 if the feature is not enabled on the campaign,
+// so misconfigured callers fail loud instead of silently using an
 // unused column.
 
 import { adminClient, cors, getCampaignFromVttToken } from '../_lib/twitch';
@@ -38,7 +48,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') {
     return cors(new Response(null, { status: 204 }));
   }
-  if (req.method !== 'POST') {
+  if (req.method !== 'POST' && req.method !== 'GET') {
     return cors(json({ error: 'Method not allowed' }, 405));
   }
 
@@ -55,6 +65,41 @@ export default async function handler(req: Request): Promise<Response> {
   );
   if (!campaignId) {
     return cors(json({ error: 'Missing or invalid Bearer token' }, 401));
+  }
+
+  // Both verbs require the feature to be enabled — the column exists on
+  // every campaign, but reading or writing it for a campaign that hasn't
+  // opted in would mislead the caller.
+  const { data: campaign, error: settingsErr } = await supabase
+    .from('campaigns')
+    .select('settings')
+    .eq('id', campaignId)
+    .maybeSingle();
+  if (settingsErr) return cors(json({ error: 'Campaign read failed' }, 500));
+  if (!campaign) return cors(json({ error: 'Campaign not found' }, 404));
+  const settings = (campaign.settings ?? {}) as SettingsBlob;
+  if (!settings.tablePoints?.enabled) {
+    return cors(
+      json({ error: 'Table points are not enabled on this campaign' }, 409)
+    );
+  }
+
+  if (req.method === 'GET') {
+    const { data: rows, error: charsErr } = await supabase
+      .from('characters')
+      .select('id, name, twitch_display_name, table_points, display_order')
+      .eq('campaign_id', campaignId)
+      .order('display_order', { ascending: true });
+    if (charsErr) return cors(json({ error: 'Character read failed' }, 500));
+    const characters = (rows ?? []).map(
+      (r: CharRow & { display_order?: number }) => ({
+        id: r.id,
+        name: r.name,
+        twitch_display_name: r.twitch_display_name,
+        table_points: r.table_points ?? 0,
+      })
+    );
+    return cors(json({ ok: true, characters }, 200));
   }
 
   let body: { character?: unknown; delta?: unknown; set?: unknown };
@@ -80,23 +125,6 @@ export default async function handler(req: Request): Promise<Response> {
         },
         400
       )
-    );
-  }
-
-  // Confirm the feature is enabled before mutating; the column exists on
-  // every campaign but writing to it for a campaign that hasn't opted in
-  // would be a footgun for the webhook caller.
-  const { data: campaign, error: readErr } = await supabase
-    .from('campaigns')
-    .select('settings')
-    .eq('id', campaignId)
-    .maybeSingle();
-  if (readErr) return cors(json({ error: 'Campaign read failed' }, 500));
-  if (!campaign) return cors(json({ error: 'Campaign not found' }, 404));
-  const settings = (campaign.settings ?? {}) as SettingsBlob;
-  if (!settings.tablePoints?.enabled) {
-    return cors(
-      json({ error: 'Table points are not enabled on this campaign' }, 409)
     );
   }
 

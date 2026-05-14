@@ -1529,6 +1529,7 @@ function TablePointsSettings(props: {
   const [showWebhook, setShowWebhook] = useState(false);
   const pointsEndpoint = `${props.origin}/api/vtt/points`;
   const curlGrant = `curl -X POST ${pointsEndpoint} \\\n  -H "Authorization: Bearer ${props.vttToken ?? '<token>'}" \\\n  -H "content-type: application/json" \\\n  -d '{"character":"<twitch or character name>","delta":1}'`;
+  const curlGet = `curl ${pointsEndpoint} \\\n  -H "Authorization: Bearer ${props.vttToken ?? '<token>'}"`;
 
   // Keep label/icon when toggling off so flipping back on restores them.
   const setEnabled = (v: boolean) =>
@@ -1608,6 +1609,11 @@ function TablePointsSettings(props: {
                   or <code className="text-stone-300">set</code> for an
                   absolute value. Points can't go below 0.
                 </p>
+                <p className="text-xs text-stone-500">
+                  GET the same URL to read every character's current count —
+                  useful for polling and displaying values on a Stream Deck
+                  button or dashboard.
+                </p>
                 <div className="flex items-center gap-2">
                   <span className="text-xs uppercase tracking-wide text-stone-400 w-20">
                     Endpoint
@@ -1624,7 +1630,7 @@ function TablePointsSettings(props: {
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="text-xs uppercase tracking-wide text-stone-400 w-20 pt-2">
-                    Example
+                    Grant
                   </span>
                   <pre className="text-xs text-stone-300 bg-stone-900 px-2 py-2 rounded flex-1 overflow-x-auto whitespace-pre">
                     {curlGrant}
@@ -1635,6 +1641,21 @@ function TablePointsSettings(props: {
                     className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded whitespace-nowrap mt-2"
                   >
                     {props.copiedKey === 'points-curl' ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-xs uppercase tracking-wide text-stone-400 w-20 pt-2">
+                    Read
+                  </span>
+                  <pre className="text-xs text-stone-300 bg-stone-900 px-2 py-2 rounded flex-1 overflow-x-auto whitespace-pre">
+                    {curlGet}
+                  </pre>
+                  <button
+                    onClick={() => props.onCopy('points-get-curl', curlGet)}
+                    disabled={!props.vttToken}
+                    className="text-xs px-3 py-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded whitespace-nowrap mt-2"
+                  >
+                    {props.copiedKey === 'points-get-curl' ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
               </div>
